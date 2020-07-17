@@ -8,7 +8,7 @@ class App extends React.Component {
     super();
     const endPoint = "http://127.0.0.1:8001"
     const socket = socketioclient(endPoint);
-    socket.emit("chat message", "Handshake");
+    //socket.emit("chat message", "Handshake");
     this.state = {
       endpoint: "http://127.0.0.1:8001",
       socket: socket,
@@ -19,7 +19,6 @@ class App extends React.Component {
   componentDidMount() {
     const endPoint = this.state.endpoint;
     const socket = socketioclient(endPoint);
-    socket.emit("chat message", "Handshake");
     this.setState({
       socket: socket,
     });
@@ -73,6 +72,7 @@ class MessageService extends React.Component {
     this.props.socket.on("chat message", (message) => {
       this.setState((state, props) => {
         const list = [...this.state.roomMessages, message];
+        console.log(list);
         return {
           roomMessages: list,
         };
@@ -125,8 +125,12 @@ class MessageHistory extends React.Component {
   }
 
   render() {
+    const messages = this.props.roomMessages.map((msg) => {
+      return (<div>{msg}</div>);
+    });
     return(
       <div style={{overflow: "scroll", height: "200px"}}>
+        {messages}
         <p> Past messages should show up here in a scrollable box.</p>
       </div>
     );

@@ -13,7 +13,7 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  console.log("A user connected");
+  console.log("A user connected with id", socket.id);
 
   socket.on("disconnect", () => {
     console.log("Client disconnected");
@@ -22,9 +22,8 @@ io.on('connection', (socket) => {
   socket.on("chat message", (message) => {
     console.log("Message received: " + message);
     io.emit("chat message", (message));
-    socket.emit("chat message", (message));
+    //socket.emit("chat message", (message));
   });
-
 });
 
 server.listen(8001, () => {

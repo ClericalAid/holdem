@@ -62,16 +62,18 @@ class MessageService extends React.Component {
   }
 
   submitMessage(event) {
-    this.props.socket.emit("chat message", this.state.userMessage);
+    if (this.state.userMessage != ""){
+      this.props.socket.emit("chat message", this.state.userMessage);
+    }
     this.setState({
       userMessage: "",
     });
   }
 
   componentDidMount(){
-    this.props.socket.on("chat message", (message) => {
+    this.props.socket.on("chat message", (packet) => {
       this.setState((state, props) => {
-        const list = [...this.state.roomMessages, message];
+        const list = [...this.state.roomMessages, packet];
         console.log(list);
         return {
           roomMessages: list,
@@ -125,13 +127,12 @@ class MessageHistory extends React.Component {
   }
 
   render() {
-    const messages = this.props.roomMessages.map((msg) => {
-      return (<div>{msg}</div>);
+    const messages = this.props.roomMessages.map((message, index) => {
+      return (<div key={index}>{message.user}: {message.message}</div>);
     });
     return(
       <div style={{overflow: "scroll", height: "200px"}}>
         {messages}
-        <p> Past messages should show up here in a scrollable box.</p>
       </div>
     );
   }

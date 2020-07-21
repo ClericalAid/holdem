@@ -18,6 +18,7 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
+  console.log("user connected with socket.id: " + socket.id);
 
   users[socket.id] = userNames[userCount]
   userCount += 1;

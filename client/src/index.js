@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import socketioclient from "socket.io-client";
 import './pure-min.css';
 import MessageService from "./messaging";
+import Game from "./game";
 
 class App extends React.Component {
   constructor() {
@@ -22,7 +23,7 @@ class App extends React.Component {
           <div className="pure-u-1-24">
           </div>
           <div className="pure-u-22-24">
-            <Game />
+            <Game socket={this.state.socket}/>
             <MessageService socket={this.state.socket} />
           </div>
           <div className="pure-u-1-24">
@@ -33,19 +34,6 @@ class App extends React.Component {
   }
 }
 
-class Game extends React.Component {
-  constructor() {
-    super();
-  }
-
-  render() {
-    return(
-      <div>
-        <p>The game should be displayed here</p>
-      </div>
-    );
-  }
-}
 ReactDOM.render(
   <App />,
   document.getElementById('root')

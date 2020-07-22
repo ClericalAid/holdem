@@ -67,11 +67,11 @@ class MessageDraft extends React.Component {
         <div className="pure-g">
           <div className="pure-u-3-4">
             <textarea placeholder="Discuss ethics and philosophy..."
-            onChange={this.props.messageChange} value={this.props.userMessage}>
+            onChange={this.props.messageChange} value={this.props.userMessage} style={{width: "99%"}}>
             </textarea>
           </div>
-          <div className="pure-u-3-4">
-          <button onClick={this.props.submitMessage}>Send baby</button>
+          <div className="pure-u-1-4">
+            <button onClick={this.props.submitMessage}>Send baby</button>
           </div>
         </div>
       </div>
@@ -89,7 +89,7 @@ class MessageHistory extends React.Component {
       return (<div key={index}>{message.user}: {message.message}</div>);
     });
     return(
-      <div style={{overflow: "scroll", height: "200px"}}>
+      <div style={{overflow: "scroll", height: "200px", overflowWrap: "break-word"}}>
         {messages}
       </div>
     );

@@ -1,4 +1,4 @@
-var randomNumber = require("random-number-csprng");
+const randomNumber = require("random-number-csprng");
 
 class Card {
   constructor(suit, rank) {
@@ -23,6 +23,7 @@ class Deck {
   }
 
   async shuffle() {
+    this.deck = this.deck.concat(this.poppedCards);
     for (let i = this.deck.length - 1; i > 0; i--){
       const j = await randomNumber(0, i);
       const temp = this.deck[i];
@@ -32,7 +33,7 @@ class Deck {
   }
 
   pop() {
-    retCard = this.deck.pop();
+    var retCard = this.deck.pop();
     this.poppedCards.push(retCard);
     return retCard;
   }

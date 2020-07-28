@@ -1,0 +1,35 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+UserManager *-- User
+RoomManager *-- GameController
+GameController *-- User
+GameController *-- Game
+Game *-- User
+User *-- Socket
+
+class RoomManager{
+  Manages all rooms
+}
+
+class UserManager{
+  Manages all users
+}
+
+class User{
+  User object, has a socket
+}
+
+class GameController{
+  Is this the room?
+  Takes users input and acts upon Game object
+  Pings the user on updates
+  Shares "users" array with Game object?
+}
+
+class Game{
+  Game object stores the state
+  Gets acted upon based on user input
+  Does not "seek" input
+}
+@enduml

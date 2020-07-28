@@ -8,6 +8,7 @@ export default class Game extends React.Component {
     const MAX_PLAYERS = 6;
     this.state = {
       players: [],
+      observers: [],
     };
   }
 
@@ -15,6 +16,8 @@ export default class Game extends React.Component {
     this.props.socket.emit("join", "");
     this.props.socket.on("join", (userMap) => {
       console.log(userMap);
+    });
+    this.props.socket.on("new_hand", (cards) => {
     });
   }
 
@@ -55,7 +58,7 @@ class Player extends React.Component {
     this.state = {
       chips: 0,
       name: "",
-      cards: []
+      cards: [],
     }
   }
 

@@ -1,13 +1,15 @@
-var express = require('express');
-var http = require('http')
-var socketio = require('socket.io');
-var userManagement = require('./userManagement');
+const express = require('express');
+const http = require('http')
+const socketio = require('socket.io');
+const user_manager = require('./user-manager');
+const room_manager = require('./room-manager');
 
 const PORT = 4001;
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
-const userManager = new userManagement.UserManager();
+const userManager = new user_manager.UserManager();
+const roomManager = new room_manager.RoomManager(io);
 
 app.get('/', (req, res) => {
   console.log(__dirname);
@@ -33,7 +35,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on("join", (packet) => {
-    socket.emit("join", userManager.userMap);
+    console.log("Placing user into a room");
+    roomManager.join_room(userManager.get_user(socket), "DEFAULT_ROOM");
   });
 });
 

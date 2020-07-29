@@ -21,8 +21,12 @@ io.on('connection', (socket) => {
   console.log("user connected with socket.id: " + socket.id);
   console.log(userManager.get_user(socket).userName);
 
+  /**
+   * Disconnect user from games, then delete their online presence
+   */
   socket.on("disconnect", () => {
     console.log("Client disconnected, socket.id: " + socket.id);
+    roomManager.disconnect_user(userManager.get_user(socket));
     userManager.disconnect_user(socket);
   });
 

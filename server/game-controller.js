@@ -11,9 +11,9 @@ class GameController{
   constructor(roomName, socket){
     this.roomName = roomName;
     this.socketName = "ROOM_" + roomName;
-    this.tableSize = 6;
-    this.users = []
-    this.users.fill(null);
+    //this.tableSize = 6;
+    this.users = new Map();
+    //this.users.fill(null);
     this.playerCount = 0;
     this.gameObject = new Game.Game();
     this.io = socket;
@@ -27,11 +27,16 @@ class GameController{
 
   add_user(user){
     user.socket.join(this.socketName);
-    this.users.push(user);
+    this.users.set(user.socket.id);
     this.gameObject.add_user(user);
-    this.io.to(this.socketName).emit("GAME_STATE", this.gameObject);
+    this.io.to(this.socketName).emit("GAME_STATE", JSON.stringify(this.gameObject));
     //this.io.to(user.socket.id).emit(this.gameObject);
     //user.socket.to(this.socketName).emit("NEW_USER", user);
+  }
+
+  remove_user(user){
+    this.gameObject.remove_user(user);
+    this.users.delete(user.socket.id);
   }
 }
 

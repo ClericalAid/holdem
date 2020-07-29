@@ -19,6 +19,9 @@ export default class Game extends React.Component {
     });
     this.props.socket.on("new_hand", (cards) => {
     });
+    this.props.socket.on("GAME_STATE", (gameObject) => {
+      console.log(JSON.parse(gameObject));
+    });
   }
 
   render() {

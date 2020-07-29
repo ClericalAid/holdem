@@ -4,7 +4,7 @@
 class Player{
   constructor(user){
     this.name = user.userName;
-    this.user = user;
+    this.uuid = user.socket.id;
     this.stack = 200; // user.buyInAmount
 
     this.smallBlind = false;

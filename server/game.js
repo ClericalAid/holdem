@@ -10,13 +10,26 @@ class Game{
     this.observers = [];
     this.playerQueue = [];
     this.nextEmptySeat = 0;
+    this.smallBlind = -1;
+    this.bigBlind = -1;
   }
 
   add_user(user){
     var addPlayer = new player.Player(user);
     this.players[this.nextEmptySeat] = addPlayer;
     this.nextEmptySeat += 1;
-    return this.players
+  }
+
+  remove_user(user){
+    console.log("GAME REMOVING USER with socket.id: " + user.socket.id);
+    for (var i = 0; i < this.tableSize; i++){
+      if (this.players[i] == null){
+      }
+      else if (this.players[i].uuid == user.socket.id){
+        console.log();
+        this.players[i] = null;
+      }
+    }
   }
 
   new_hand(){

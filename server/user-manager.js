@@ -13,7 +13,7 @@ class UserManager{
   constructor(){
     this.userMap = new Map();
     this.userCount = 0;
-    this.defaultNames = ["crazycat", "derpydog"];
+    this.defaultNames = ["crazycat", "derpydog", "erraticeel", "flakyferret", "insaneiguana", "maniacalmouse"];
   }
 
   add_user(socket){

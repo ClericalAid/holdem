@@ -45,7 +45,6 @@ class RoomManager{
     if (!this.socketRoomMap.has(user.socket.id)){
       return;
     }
-    console.log("ROOM_MANAGER REMOVING USER with socket.id: " + user.socket.id);
     var currRoom = this.socketRoomMap.get(user.socket.id);
     currRoom.remove_user(user);
     this.socketRoomMap.delete(user.socket.id);

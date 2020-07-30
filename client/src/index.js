@@ -13,9 +13,12 @@ class App extends React.Component {
     this.state = {
       endpoint: "http://127.0.0.1:8001",
       socket: socket,
+      socketId: "",
     };
   }
 
+  componentDidMount(){
+  }
   render() {
     return(
       <div>

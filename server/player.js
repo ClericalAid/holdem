@@ -17,7 +17,6 @@ class Player{
     this.sittingOut = false;
 
     // Bet sizing and valid moves
-    this.totalBetInRound = 0;
     this.totalInvestment = 0;
     this.minBet = 0;
     this.maxBet = 0;
@@ -27,13 +26,110 @@ class Player{
     this.canCall = false;
     this.canCallIn = false;
     this.canRaise = false;
-    this.canCheck = false;
+    this.canCheck = false; // might not be needed. Check is just calling 0.
     this.canFold = false;
     this.canAllIn = false;
   }
 
   draw_card(deck){
     this.hand.push(deck.pop());
+  }
+
+  place_blind(amount){
+    if (amount >= this.stack){
+      amount = this.stack;
+      this.stack = 0;
+      this.isAllIn = true;
+    }
+    else{
+      this.stack -= amount;
+    }
+    this.totalBetInRound += amount;
+    this.totalInvestment += amount;
+    return amount;
+  }
+
+/**
+ * valid_moves
+ * Input:
+ *  totalCall - The greatest total investment of one player. I.e. player A bets 10, player B
+ *    raises another 10 (puts in 20 chips), the total investment is 20. This is the totalCall
+ *
+ *  minRaise - The minimum which someone is allowed to raise. If what you are calling is less
+ *    than the minimum raise, it means we saw a call-in.
+ *
+ * 1) Our stack is less than the amount to call
+ * We can 
+ *   call-in
+ *   fold
+ * 
+ * 2) Our stack is less than the minimum raise amount (but more than the call amount)
+ * We can
+ *   call
+ *   call-in
+ *   fold
+ * 
+ * 3) Our stack is greater than the minimum raise amount
+ * We can
+ *   call
+ *   all-in
+ *   fold
+ *   raise
+ * 
+ * Special cases:
+ * 1) The amount to call is 0 and we are acting:
+ * This means that we are probably opening the action. So we are checking. We should never be
+ * in a position where we are looking to raise ourselves.
+ * 
+ * 2) The amount to call is less than the minRaise:
+ * Somebody else performed an all-in that wasn't large enough for us to re-raise. We can only call
+ * or fold here. However, our call might be a call-in due to our stack size.
+ */
+  valid_moves(totalCall, minRaise){
+    this.amountToCall = totalCall - this.totalInvestment;
+    this.minRaiseTotal = this.amountToCall + minRaise;
+
+    this.canCall = false;
+    this.canCallIn = false;
+    this.canRaise = false;
+    this.canFold = false;
+    this.canAllIn = false;
+
+    // Case 1)
+    if (this.stack <= this.amountToCall){
+      this.canCallIn = true;
+      this.canFold = true;
+    }
+
+    // Case 2)
+    else if (this.stack <= this.minRaiseTotal){
+      this.canCall = true;
+      this.canCallIn = true;
+      this.canFold = true;
+    }
+
+    // Case 3)
+    else{
+      this.canCall = true;
+      this.canAllIn = true;
+      this.canFold = true;
+      this.canRaise = true;
+      this.maxRaise = this.stack;
+    }
+
+    // Special case 1)
+    if (this.amountToCall == 0){
+      this.canFold = false;
+    }
+
+    // Special case 2)
+    else if (this.amountToCall < minRaise){
+      this.canAllIn = false;
+      this.canRaise = false;
+      if (this.canCall == true){
+        this.canCallIn = false;
+      }
+    }
   }
 }
 

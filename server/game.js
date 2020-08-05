@@ -37,7 +37,7 @@ class Game{
     this.actor = 0;
     this.lastRaiser = -1;
     this.foldedPlayers = 0;
-    this.allInPlayers = 0;
+    this.allInPlayers = [];
     this.callIn = 0;
 
     // Pot management
@@ -56,13 +56,13 @@ class Game{
  */
 
   update_next_empty_seat(){
-    if (this.playerCount == this.tableSize){
+    if (this.playerCount === this.tableSize){
       return;
     }
     for (var i = 0; i < this.tableSize; i++){
       this.nextEmptySeat += 1;
       this.nextEmptySeat = this.nextEmptySeat % this.tableSize;
-      if (this.players[this.nextEmptySeat] == null){
+      if (this.players[this.nextEmptySeat] === null){
         break;
       }
     }
@@ -77,13 +77,13 @@ class Game{
 
   remove_user(user){
     for (var i = 0; i < this.tableSize; i++){
-      if (this.players[i] == null){
+      if (this.players[i] === null){
       }
-      else if (this.players[i].uuid == user.socket.id){
+      else if (this.players[i].uuid === user.socket.id){
         this.players[i] = null;
       }
     }
-    if (this.playerCount == this.tableSize){
+    if (this.playerCount === this.tableSize){
       this.update_next_empty_seat();
     }
     this.playerCount -= 1;
@@ -106,10 +106,10 @@ class Game{
   next_player(playerIndex){
     do {
       playerIndex = this.cyclic_increment(playerIndex, this.tableSize);
-      if (playerIndex == this.lastRaiser){
+      if (playerIndex === this.lastRaiser){
         break;
       }
-    }while(this.players[playerIndex] == null)
+    }while(this.players[playerIndex] === null)
 
     return playerIndex;
   }
@@ -124,9 +124,9 @@ class Game{
   next_actor(){
     do {
       this.actor = this.next_player(this.actor);
-    }while(this.players[this.actor].isAllIn || this.players[this.actor].folded)
+    }while(this.current_actor().isAllIn || this.current_actor().folded)
 
-    if (this.actor == this.lastRaiser){
+    if (this.actor === this.lastRaiser){
       console.log("Round ending here");
       this.next_round();
     }
@@ -134,6 +134,9 @@ class Game{
     this.valid_moves();
   }
 
+  current_actor(){
+    return this.players[this.actor];
+  }
 /**
  * GAMEFLOW
  */
@@ -149,8 +152,21 @@ class Game{
   }
 
   valid_moves(){
-    this.players[this.actor].valid_moves(this.totalCall, this.minRaise);
-    return this.players[this.actor];
+    if (this.current_actor().totalInvestment === this.smallBlindAmount &&
+    this.actor === this.smallBlindSeat){
+      this.current_actor().valid_moves(this.totalCall, this.minRaise, true);
+    }
+
+    else if (this.current_actor().totalInvestment === this.bigBlindAmount &&
+    this.actor === this.bigBlindSeat){
+      this.current_actor().valid_moves(this.totalCall, this.minRaise, true);
+    }
+
+    else{
+      this.current_actor().valid_moves(this.totalCall, this.minRaise);
+    }
+
+    return this.current_actor();
   }
 
   /**
@@ -180,14 +196,14 @@ class Game{
   async deal_cards(){
     await this.deck.shuffle();
     for (const user of this.players){
-      if (user == null){
+      if (user === null){
       }
       else{
         user.draw_card(this.deck);
       }        
     }
     for (const user of this.players){
-      if (user == null){
+      if (user === null){
       }
       else{
         user.draw_card(this.deck);
@@ -222,20 +238,21 @@ class Game{
     this.check_active_players();
 
     // 1)
-    if (this.sharedCards.length == this.PREFLOP){
+    if (this.sharedCards.length === this.PREFLOP){
       this.flop();
     }
     // 2)
-    else if (this.sharedCards.length == this.FLOP){
+    else if (this.sharedCards.length === this.FLOP){
       this.next_card();
     }
     // 3)
-    else if (this.sharedCards.length == this.TURN){
+    else if (this.sharedCards.length === this.TURN){
       this.next_card();
     }
     // 4)
-    else if (this.sharedCards.length == this.RIVER){
-      // showdown
+    else if (this.sharedCards.length === this.RIVER){
+      console.log("IT'S SHOWDOWN BABY!");
+      //this.showdown();
     }
 
   }
@@ -265,34 +282,93 @@ class Game{
  * PLAYER COMMANDS
  */
   call(){
-    var addToPot = this.players[this.actor].call();
-    if (addToPot == false){
+    var addToPot = this.current_actor().call();
+    if (addToPot === false){
       return;
     }
     this.pot += addToPot;
-    if (this.lastRaiser == -1){
+    if (this.lastRaiser === -1){
       this.lastRaiser = this.actor;
     }
     this.next_actor();
   }
 
   raise(amount){
-    var addToPot = this.players[this.actor].raise(amount);
-    if (addToPot == false){
+    var addToPot = this.current_actor().raise(amount);
+    if (addToPot === false){
       return;
     }
     this.pot += addToPot;
-    this.minRaise = addToPot;
+    this.minRaise = this.current_actor().totalInvestment - this.totalCall;
     this.lastRaiser = this.actor;
-    this.totalCall = this.players[this.actor].totalInvestment;
+    this.totalCall = this.current_actor().totalInvestment;
     this.next_actor();
   }
 
   fold(){
+    if (this.current_actor().fold() === false){
+      return;
+    }
+    this.foldedPlayers += 1;
+    this.next_actor();
   }
 
+  /**
+   * If you can only call in, then canCallIn is true and canAllIn is false
+   *
+   * In a call-in. The minimum raise is not changed, and the last actor is the same
+   */
   all_in(){
+    var addToPot = this.current_actor().all_in();
+    if (addToPot === false){
+      return;
+    }
+
+    this.add_side_pot(this.current_actor().totalInvestment);
+    if (this.current_actor().canAllIn){
+      this.lastRaiser = this.actor;
+      this.minRaise = this.current_actor().totalInvestment - this.minRaise;
+    }
+
+    this.pot += addToPot;
+    this.totalCall = this.current_actor().totalInvestment;
+    this.next_actor();
   }
+
+/**
+ * POT MANAGEMENT COMMANDS
+ */
+
+  /**
+   * Array empty, put the number in
+   * Input less than smallest number insert at beginning
+   * Input greater than largest number, push the number ontop of it
+   *
+   * Otherwise, insert it via looping
+   */
+  add_side_pot(potSize){
+    if (this.sidePots.length == 0){
+      this.sidePots.push(potSize);
+      return;
+    }
+
+    else if(potSize < this.sidePots[0]){
+      this.sidePots.unshift(potSize);
+    }
+
+    else if(potSize > this.sidePots[this.sidePots.length - 1]){
+      this.sidePots.push(potSize);
+    }
+
+    else{
+      for (var i = 0; i < this.sidePots.length; i++){
+        if (this.sidePots[i] > potSize){
+          this.sidePots(i - 1, 0, potSize);
+        }
+      }
+    }
+  }
+
 /**
  * DEBUG COMMANDS
  */
@@ -310,10 +386,12 @@ class Game{
     console.log(""); 
 
     console.log("Pot: " + this.pot);
+    console.log("Side pots: " + this.sidePots);
     console.log("Dealer: " + this.dealer);
     console.log("SB: " + this.smallBlindSeat);
     console.log("BB: " + this.bigBlindSeat);
     console.log("Actor: " + this.actor);
+    console.log("min-raise: " + this.minRaise);
   }
 }
 

@@ -18,9 +18,9 @@ class Player{
 
     // Bet sizing and valid moves
     this.totalInvestment = 0;
-    this.minBet = 0;
+    //this.minBet = 0;
     this.maxBet = 0;
-    this.minRaise = 0;
+    //this.minRaise = 0;
     this.maxRaise = 0;
     this.amountToCall = 0;
     this.canCall = false;
@@ -58,6 +58,10 @@ class Player{
  *  minRaise - The minimum which someone is allowed to raise. If what you are calling is less
  *    than the minimum raise, it means we saw a call-in.
  *
+ *  blindPlayer - A boolean which is true if the player is a big blind or small blind, and 
+ *    this is their first time acting. Under such circumstances, it looks like they are facing
+ *    a bet which is not a min-raise, but this is false. The player can still act.
+ *
  * 1) Our stack is less than the amount to call
  * We can 
  *   call-in
@@ -83,9 +87,9 @@ class Player{
  * 
  * 2) The amount to call is less than the minRaise:
  * Somebody else performed an all-in that wasn't large enough for us to re-raise. We can only call
- * or fold here. However, our call might be a call-in due to our stack size.
+ * or fold here. However, our call might be a call-in due to our stack size. OR WE ARE THE BLIND
  */
-  valid_moves(totalCall, minRaise){
+  valid_moves(totalCall, minRaise, blindException = false){
     this.amountToCall = totalCall - this.totalInvestment;
     this.minRaiseTotal = this.amountToCall + minRaise;
 
@@ -118,15 +122,15 @@ class Player{
     }
 
     // Special case 1)
-    if (this.amountToCall == 0){
+    if (this.amountToCall === 0){
       this.canFold = false;
     }
 
     // Special case 2)
-    else if (this.amountToCall < minRaise){
+    else if (this.amountToCall < minRaise && blindException === false){
       this.canAllIn = false;
       this.canRaise = false;
-      if (this.canCall == true){
+      if (this.canCall === true){
         this.canCallIn = false;
       }
     }
@@ -139,10 +143,13 @@ class Player{
     this.totalBetInRound += amount;
     this.totalInvestment += amount;
     this.stack -= amount;
+    if (this.stack == 0){
+      this.isAllIn = true;
+    }
   }
 
   call(){
-    if (this.canCall == false){
+    if (this.canCall === false){
       console.log("Invalid move, cannot call?");
     }
     this.place_bet(this.amountToCall);
@@ -150,12 +157,31 @@ class Player{
   }
 
   raise(amount){
-    if (this.canRaise == false || amount > this.maxRaise || amount < this.minRaise){
+    if (this.canRaise === false || amount > this.maxRaise || amount < this.minRaiseTotal){
       console.log("Invalid raise amount");
       return false
     }
     this.place_bet(amount);
     return amount;
+  }
+
+  all_in(){
+    if (this.canCallIn === false && this.canAllIn === false){
+      console.log("Cannot all in here");
+      return false;
+    }
+    this.isAllIn = true;
+
+    var betAmount = this.stack;
+    this.place_bet(betAmount);
+    return betAmount;
+  }
+
+  fold(){
+    if (this.canFold === false){
+      return false;
+    }
+    this.folded = true;
   }
 }
 

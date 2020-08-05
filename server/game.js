@@ -96,22 +96,46 @@ class Game{
   }
 
   /**
-   * Cycles through and gets us the next player, ignores "null" players
+   * Cycles through and gets us the next player, ignores:
+   * "null" players
+   * folded players?
+   * all in players?
+   *
+   * If we go to the next round, the next actor needs to reset to after the dealer
    */
   next_player(playerIndex){
     do {
       playerIndex = this.cyclic_increment(playerIndex, this.tableSize);
+      if (playerIndex == this.lastRaiser){
+        break;
+      }
     }while(this.players[playerIndex] == null)
+
     return playerIndex;
   }
 
   /**
-   * Cycles through players who can act. Ignores players who folded, are all in, etc.
+   * Update actor
+   *
+   * 1) Keep going to the next player, until we find one who is in the game and needs to decide
+   *
+   * 2) If we went full circle, back to the agressor, the round ends
    */
   next_actor(){
+    do {
+      this.actor = this.next_player(this.actor);
+    }while(this.players[this.actor].isAllIn || this.players[this.actor].folded)
+
+    if (this.actor == this.lastRaiser){
+      console.log("Round ending here");
+      this.next_round();
+    }
+
+    this.valid_moves();
   }
+
 /**
- * PLAYER COMMANDS
+ * GAMEFLOW
  */
   async new_hand(){
     this.totalCall = 0;
@@ -122,6 +146,11 @@ class Game{
     this.dealer = this.next_player(this.dealer);
     this.post_blinds();
     await this.deal_cards();
+  }
+
+  valid_moves(){
+    this.players[this.actor].valid_moves(this.totalCall, this.minRaise);
+    return this.players[this.actor];
   }
 
   /**
@@ -145,7 +174,7 @@ class Game{
     this.pot += this.players[this.smallBlindSeat].place_blind(this.smallBlindAmount);
     this.pot += this.players[this.bigBlindSeat].place_blind(this.bigBlindAmount);
     this.actor = this.next_player(this.bigBlindSeat);
-    this.players[this.actor].valid_moves(this.totalCall, this.minRaise);
+    this.valid_moves();
   }
 
   async deal_cards(){
@@ -211,6 +240,62 @@ class Game{
 
   }
 
+  flop(){
+    this.lastRaiser = -1;
+    this.minRaise = this.bigBlind;
+    this.actor = this.dealer;
+    this.next_actor();
+
+    this.deck.pop();
+    this.sharedCards.push(this.deck.pop());
+    this.sharedCards.push(this.deck.pop());
+    this.sharedCards.push(this.deck.pop());
+  }
+
+  next_card(){
+    this.minRaise = this.bigBlind;
+    this.actor = this.dealer;
+    this.actor = this.next_player(this.actor);
+
+    this.deck.pop();
+    this.sharedCards.push(this.deck.pop());
+  }
+
+/**
+ * PLAYER COMMANDS
+ */
+  call(){
+    var addToPot = this.players[this.actor].call();
+    if (addToPot == false){
+      return;
+    }
+    this.pot += addToPot;
+    if (this.lastRaiser == -1){
+      this.lastRaiser = this.actor;
+    }
+    this.next_actor();
+  }
+
+  raise(amount){
+    var addToPot = this.players[this.actor].raise(amount);
+    if (addToPot == false){
+      return;
+    }
+    this.pot += addToPot;
+    this.minRaise = addToPot;
+    this.lastRaiser = this.actor;
+    this.totalCall = this.players[this.actor].totalInvestment;
+    this.next_actor();
+  }
+
+  fold(){
+  }
+
+  all_in(){
+  }
+/**
+ * DEBUG COMMANDS
+ */
   print_board(){
     for (var i = 0; i < this.players.length; i++){
       var actor = this.players[i];
@@ -219,6 +304,11 @@ class Game{
         console.log(actor.hand);
       }
     }
+    console.log(""); 
+    console.log("Shared cards: ");
+    console.log(this.sharedCards);
+    console.log(""); 
+
     console.log("Pot: " + this.pot);
     console.log("Dealer: " + this.dealer);
     console.log("SB: " + this.smallBlindSeat);

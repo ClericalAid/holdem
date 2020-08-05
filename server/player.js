@@ -131,6 +131,32 @@ class Player{
       }
     }
   }
+
+  place_bet(amount){
+    if (amount > this.stack){
+      console.log("Invalid move, bet amount above stack");
+    }
+    this.totalBetInRound += amount;
+    this.totalInvestment += amount;
+    this.stack -= amount;
+  }
+
+  call(){
+    if (this.canCall == false){
+      console.log("Invalid move, cannot call?");
+    }
+    this.place_bet(this.amountToCall);
+    return this.amountToCall;
+  }
+
+  raise(amount){
+    if (this.canRaise == false || amount > this.maxRaise || amount < this.minRaise){
+      console.log("Invalid raise amount");
+      return false
+    }
+    this.place_bet(amount);
+    return amount;
+  }
 }
 
 module.exports = {

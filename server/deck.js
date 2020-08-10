@@ -24,6 +24,7 @@ class Deck {
 
   async shuffle() {
     this.deck = this.deck.concat(this.poppedCards);
+    this.poppedCards.length = 0;
     for (let i = this.deck.length - 1; i > 0; i--){
       const j = await randomNumber(0, i);
       const temp = this.deck[i];

@@ -75,7 +75,8 @@ class HandRanker{
     this.is_a_flush();
     this.is_a_straight(allCardValues);
     this.check_matching_cards(sortedCardHistogram);
-    return [this.handRank, this.handValue];
+    this.handScore = [this.handRank].concat(this.handValue);
+    return this.handScore;
   }
 
   /**

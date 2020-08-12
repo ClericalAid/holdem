@@ -5,7 +5,6 @@ const player = require('./player');
  * Game
  * Game object which keeps track of the state and flow of the game.
  *
- *
  */
 class Game{
   constructor(){
@@ -22,6 +21,7 @@ class Game{
     this.players.fill(null);
     this.playerCount = 0;
     this.nextEmptySeat = 0;
+    this.playerRanking = [];
 
     this.deck = new deck.Deck();
     this.sharedCards = [];
@@ -37,7 +37,7 @@ class Game{
     this.actor = 0;
     this.lastRaiser = -1;
     this.foldedPlayers = 0;
-    this.allInPlayers = [];
+    this.allInPlayers = 0;
     this.callIn = 0;
 
     // Pot management
@@ -141,6 +141,12 @@ class Game{
  * GAMEFLOW
  */
   async new_hand(){
+    for (const actor of this.players){
+      if (actor !== null){
+        actor.new_hand();
+      }
+    }
+
     this.totalCall = 0;
     this.lastRaiser = -1;
     this.foldedPlayers = 0;
@@ -185,7 +191,6 @@ class Game{
 
     this.minRaise = this.bigBlindAmount;
     this.totalCall = this.bigBlindAmount;
-    this.lastRaiser = this.bigBlindSeat;
 
     this.pot += this.players[this.smallBlindSeat].place_blind(this.smallBlindAmount);
     this.pot += this.players[this.bigBlindSeat].place_blind(this.bigBlindAmount);
@@ -211,7 +216,25 @@ class Game{
     }
   }
 
+  /**
+   * Check if only one player is able to act, the rest are some combination of 
+   * being all-in or folded.
+   *
+   * a)  If there is even one person all-in
+   *       We accelerate to the river, and check the winner
+   *
+   * b)  Otherwise:
+   *       The player wins (the others have folded)
+   */
   check_active_players(){
+    if (this.foldedPlayers + this.allInPlayers >= this.players.length - 1){
+      if (this.allInPlayers > 0){
+        while(this.sharedCards.length < this.RIVER){
+          next_card();
+        }
+        this.showdown();
+      }
+    }
   }
 
 /**
@@ -252,7 +275,7 @@ class Game{
     // 4)
     else if (this.sharedCards.length === this.RIVER){
       console.log("IT'S SHOWDOWN BABY!");
-      //this.showdown();
+      this.showdown();
     }
 
   }
@@ -264,18 +287,74 @@ class Game{
     this.next_actor();
 
     this.deck.pop();
-    this.sharedCards.push(this.deck.pop());
-    this.sharedCards.push(this.deck.pop());
-    this.sharedCards.push(this.deck.pop());
+    for (var i = 0; i < this.FLOP; i++){
+      var card = this.deck.pop();
+      this.sharedCards.push(card);
+      for (const actor of this.players){
+        if (actor !== null){
+          actor.new_card(card);
+        }
+      }
+    }
   }
 
   next_card(){
     this.minRaise = this.bigBlind;
+    this.lastRaiser = -1;
     this.actor = this.dealer;
     this.actor = this.next_player(this.actor);
 
     this.deck.pop();
-    this.sharedCards.push(this.deck.pop());
+    var card = this.deck.pop();
+    this.sharedCards.push(card);
+
+    for (const actor of this.players){
+      if (actor !== null){
+        actor.new_card(card);
+      }
+    }
+  }
+
+  /**
+   * Sorts the players based on how strong their hands are
+   */
+  player_hand_comparer = (playerA, playerB) => {
+    var handScoreA = playerA.handRanker.handScore;
+    var handScoreB = playerB.handRanker.handScore;
+    var iterations = Math.min(handScoreA.length, handScoreB.length);
+    for (var i = 0; i < iterations; i++){
+      if (handScoreA[i] !== handScoreB[i]){
+        return handScoreB[i] - handScoreA[i];
+      }
+    }
+  }
+
+  /**
+   * Checks if the two players given are tied
+   */
+  players_tied(playerA, playerB){
+    var handScoreA = playerA.handRanker.handScore;
+    var handScoreB = playerB.handRanker.handScore;
+    var iterations = Math.min(handScoreA.length, handScoreB.length);
+    for (var i = 0; i < iterations; i++){
+      if (handScoreA[i] !== handScoreB[i]){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  declare_winners(){
+  }
+
+  showdown(){
+    for (const actor of this.players){
+      if (actor !== null){
+        actor.handRanker.score_hand();
+        this.playerRanking.push(actor);
+      }
+    }
+    this.playerRanking.sort(this.player_hand_comparer);
   }
 
 /**
@@ -330,6 +409,7 @@ class Game{
       this.minRaise = this.current_actor().totalInvestment - this.minRaise;
     }
 
+    this.allInPlayers += 1;
     this.pot += addToPot;
     this.totalCall = this.current_actor().totalInvestment;
     this.next_actor();

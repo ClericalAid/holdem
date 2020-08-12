@@ -1,3 +1,5 @@
+const handRanker = require('./hand-ranker');
+
 /**
  * Player class used in the game object. Links back to the user
  */
@@ -10,6 +12,7 @@ class Player{
     this.smallBlind = false;
     this.bigBlind = false;
     this.hand = [];
+    this.handRanker = new handRanker.HandRanker();
 
     // Player state
     this.folded = false;
@@ -32,7 +35,17 @@ class Player{
   }
 
   draw_card(deck){
-    this.hand.push(deck.pop());
+    var card = deck.pop();
+    this.hand.push(card);
+    this.handRanker.add_card(card);
+  }
+
+  new_card(card){
+    this.handRanker.add_card(card);
+  }
+
+  new_hand(){
+    this.handRanker.reset();
   }
 
   place_blind(amount){

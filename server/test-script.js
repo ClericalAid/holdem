@@ -50,9 +50,12 @@ async function test(){
   gameObject.remove_user(user4);
   gameObject.remove_user(user5);
 
+  /*
   gameObject.players[0].stack = 200;
   gameObject.players[1].stack = 50;
   gameObject.players[2].stack = 100;
+  */
+
   await gameObject.new_hand();
 }
 
@@ -114,6 +117,10 @@ process.stdin.on("data", input => {
 
   if (args[0] == "board"){
     gameObject.print_board();
+  }
+
+  if (args[0] == "debug"){
+    debugger;
   }
 });
 

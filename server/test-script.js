@@ -46,15 +46,8 @@ async function test(){
   gameObject.add_user(user4);
   gameObject.add_user(user5);
 
-  gameObject.remove_user(user3);
   gameObject.remove_user(user4);
   gameObject.remove_user(user5);
-
-  /*
-  gameObject.players[0].stack = 200;
-  gameObject.players[1].stack = 50;
-  gameObject.players[2].stack = 100;
-  */
 
   await gameObject.new_hand();
 }

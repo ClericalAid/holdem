@@ -101,6 +101,7 @@ class Player{
  * 2) The amount to call is less than the minRaise:
  * Somebody else performed an all-in that wasn't large enough for us to re-raise. We can only call
  * or fold here. However, our call might be a call-in due to our stack size. OR WE ARE THE BLIND
+ *
  */
   valid_moves(totalCall, minRaise, blindException = false){
     this.amountToCall = totalCall - this.totalInvestment;

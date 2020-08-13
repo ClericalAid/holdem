@@ -1,0 +1,11 @@
+Use pipes to test the application:
+mkfifo MYPIPE
+
+Then when you run the program:
+  node --inspect test-script.js < MYPIPE
+
+The script then can write to the pipe
+  echo "command" > MYPIPE
+
+The test script now accepts automated tests, as opposed to manually typing the test cases
+into stdin.

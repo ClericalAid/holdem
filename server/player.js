@@ -40,6 +40,10 @@ class Player{
     this.handRanker.add_card(card);
   }
 
+  win_chips(chipCount){
+    this.stack += chipCount;
+  }
+
   new_card(card){
     this.handRanker.add_card(card);
   }

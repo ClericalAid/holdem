@@ -26,6 +26,7 @@ const player = require('./player');
  *    up to us to manage the content of the array.
  * playerRanking - A sorted array of the players based on how strong their hand is. From 
  *    strongest to weakest. It should always be sorted after being filled up.
+ * handDone - A boolean to describe if the game is waiting to start a new hand
  * deck - The deck of cards used to play the game.
  * sharedCards - The community cards on the table.
  *
@@ -78,6 +79,7 @@ class Game{
     this.playerCount = 0;
     this.nextEmptySeat = 0;
     this.playerRanking = [];
+    this.handDone = true;
 
     this.deck = new deck.Deck();
     this.sharedCards = [];
@@ -180,10 +182,6 @@ class Game{
   next_player(playerIndex){
     do {
       playerIndex = this.cyclic_increment(playerIndex, this.tableSize);
-      // TODO: THIS CHECK SEEMS REDUNDANT, TEST IT
-      if (playerIndex === this.lastRaiser){
-        break;
-      }
     }while(this.players[playerIndex] === null)
 
     return playerIndex;
@@ -240,24 +238,41 @@ class Game{
    * Resets all player hands and game state variables, and then deals the next hand.
    */
   async new_hand(){
+    if (this.handDone === false){
+      console.log("NEW HAND CALLED WHEN GAME IS NOT DONE");
+      return
+    }
+    this.handDone = false;
     for (const actor of this.players){
       if (actor !== null){
         actor.new_hand();
       }
     }
 
-    this.totalCall = 0;
+    // Turn management
     this.lastRaiser = -1;
     this.foldedPlayers = 0;
     this.allInPlayers = 0;
+
+    // Pot management
+    this.totalCall = 0;
+    this.minRaise = 0;
     this.pot = this.potRemainder;
     this.potRemainder = 0;
+    this.sidePots.length = 0;
+    this.sidePotWinners = [];
+    this.sidePotTotal = [];
+    this.sidePotParticipants = [];
 
     this.dealer = this.next_player(this.dealer);
     this.post_blinds();
     await this.deal_cards();
   }
 
+  hand_done(){
+    console.log("HAND IS DONE");
+    this.handDone = true;
+  }
   /**
    * valid_moves
    * Prompts the player to calculate all possible moves they can make. Usually this involves
@@ -267,12 +282,18 @@ class Game{
    * Special cases:
    *
    * 1)
+   * Player is looking to re-raise himself. The hand is done at this point (everyone else
+   * folded or are all in, so the turn order has returned to the player). The game is at
+   * showdown, or everyone else is out and the player has won the pot. The game should be
+   * on pause.
+   *
+   * 2)
    * The player is in the small blind seat on the first round. The minimum raise compared to
    * how much they put into the pot does not line up well (the raise they see does not seem legal).
    * If the player is in the small blind seat, and the amount they put into the pot is exactly
    * the small blind amount, then they are in this case.
    *
-   * 2)
+   * 3)
    * The player is in the big blind seat on the first round. Even if everybody calls, they are
    * allowed to re-raise. Almost like they are re-raising themselves. This is an illegal move
    * but it is allowed on the first round. Therefore, we must take this into account. If the
@@ -280,12 +301,18 @@ class Game{
    */
   valid_moves(){
     // 1)
+    if (this.actor === this.lastRaiser){
+      this.current_actor().disable_moves();
+      return;
+    }
+
+    // 2)
     if (this.current_actor().totalInvestment === this.smallBlindAmount &&
     this.actor === this.smallBlindSeat){
       this.current_actor().valid_moves(this.totalCall, this.minRaise, true);
     }
 
-    // 2)
+    // 3)
     else if (this.current_actor().totalInvestment === this.bigBlindAmount &&
     this.actor === this.bigBlindSeat){
       this.current_actor().valid_moves(this.totalCall, this.minRaise, true);
@@ -362,39 +389,34 @@ class Game{
   /**
    * game_still_active
    * 
-   * 1)
-   * Check if only one player (or fewer) is able to act, the rest are some combination of 
-   * being all-in or folded. Either way, the game is no longer active as there is nobody to
-   * play against the active player.
+   * There are 2 cases I think:
    *
-   * a)  If there is even one person all-in
-   *       We accelerate to the river and then send ourselves back to the game loop where
-   *       the winner will be checked
+   * 1) Everybody else has folded
+   *    a) Money goes to only player left in the pot
    *
-   * b)  Otherwise:
-   *       The player wins (the others have all folded). 
-   *       We do not return to the game loop in this case, because we need to restart the hand
+   * 2) A combination of folding and all in means only one player (or less) can act
+   *    a) We rush to showdown
    */
   game_still_active(){
     // 1)
+    if (this.foldedPlayers === this.playerCount - 1){
+      // 1a)
+      for (const actor of this.players){
+        if (actor !== null && !actor.folded){
+          actor.win_chips(this.pot);
+        }
+      }
+      return false;
+    }
+    // 2)
     if (this.foldedPlayers + this.allInPlayers >= this.playerCount - 1){
-      // a)
+      // 2a)
       if (this.allInPlayers > 0){
         while(this.sharedCards.length < this.RIVER){
           this.deck.pop();
           this.add_card_to_shared_cards();
         }
         return true;
-      }
-      // b)
-      else{
-        // Everybody else folded
-        for (const actor of this.players){
-          if (!actor.folded){
-            actor.win_chips(this.pot);
-          }
-        }
-        return false;
       }
     }
     return true;
@@ -425,6 +447,7 @@ class Game{
     var gameIsActive = this.game_still_active();
     if (!gameIsActive){
       // Need a function to call when game ends
+      this.hand_done();
       return;
     }
 
@@ -454,7 +477,7 @@ class Game{
    */
   flop(){
     this.lastRaiser = -1;
-    this.minRaise = this.bigBlind;
+    this.minRaise = this.bigBlindAmount;
     this.actor = this.dealer;
     this.next_actor();
 
@@ -470,7 +493,7 @@ class Game{
    * turn and river.
    */
   next_card(){
-    this.minRaise = this.bigBlind;
+    this.minRaise = this.bigBlindAmount;
     this.lastRaiser = -1;
 
     this.deck.pop();
@@ -564,6 +587,7 @@ class Game{
     this.add_side_pot(this.current_actor().totalInvestment);
     this.evaluate_side_pots();
     this.distribute_side_pots();
+    this.hand_done();
   }
 
   /**
@@ -836,11 +860,13 @@ class Game{
     // 2)
     else if(potSize < this.sidePots[0]){
       this.sidePots.unshift(potSize);
+      return;
     }
 
     // 3)
     else if(potSize > this.sidePots[this.sidePots.length - 1]){
       this.sidePots.push(potSize);
+      return;
     }
 
     // 4)
@@ -853,6 +879,7 @@ class Game{
         }
         if (this.sidePots[i] > potSize){
           this.sidePots.splice(i, 0, potSize);
+          return;
         }
       }
     }

@@ -21,9 +21,7 @@ class Player{
 
     // Bet sizing and valid moves
     this.totalInvestment = 0;
-    //this.minBet = 0;
     this.maxBet = 0;
-    //this.minRaise = 0;
     this.maxRaise = 0;
     this.amountToCall = 0;
     this.canCall = false;
@@ -49,7 +47,27 @@ class Player{
   }
 
   new_hand(){
+    // Player hand reset
+    this.hand.length = 0;
     this.handRanker.reset();
+
+    // Player state reset
+    this.folded = false;
+    this.isAllIn = false;
+    this.sittingOut = false;
+
+    // Bet sizing reset
+    this.totalInvestment = 0;
+    this.maxBet = 0;
+    this.maxRaise = 0;
+    this.amountToCall = 0;
+    this.canCall = false;
+    this.canCallIn = false;
+    this.canRaise = false;
+    this.canFold = false;
+    this.canAllIn = false;
+
+    this.totalInvestment = 0;
   }
 
   place_blind(amount){
@@ -66,56 +84,60 @@ class Player{
     return amount;
   }
 
-/**
- * valid_moves
- * Input:
- *  totalCall - The greatest total investment of one player. I.e. player A bets 10, player B
- *    raises another 10 (puts in 20 chips), the total investment is 20. This is the totalCall
- *
- *  minRaise - The minimum which someone is allowed to raise. If what you are calling is less
- *    than the minimum raise, it means we saw a call-in.
- *
- *  blindPlayer - A boolean which is true if the player is a big blind or small blind, and 
- *    this is their first time acting. Under such circumstances, it looks like they are facing
- *    a bet which is not a min-raise, but this is false. The player can still act.
- *
- * 1) Our stack is less than the amount to call
- * We can 
- *   call-in
- *   fold
- * 
- * 2) Our stack is less than the minimum raise amount (but more than the call amount)
- * We can
- *   call
- *   call-in
- *   fold
- * 
- * 3) Our stack is greater than the minimum raise amount
- * We can
- *   call
- *   all-in
- *   fold
- *   raise
- * 
- * Special cases:
- * 1) The amount to call is 0 and we are acting:
- * This means that we are probably opening the action. So we are checking. We should never be
- * in a position where we are looking to raise ourselves.
- * 
- * 2) The amount to call is less than the minRaise:
- * Somebody else performed an all-in that wasn't large enough for us to re-raise. We can only call
- * or fold here. However, our call might be a call-in due to our stack size. OR WE ARE THE BLIND
- *
- */
-  valid_moves(totalCall, minRaise, blindException = false){
-    this.amountToCall = totalCall - this.totalInvestment;
-    this.minRaiseTotal = this.amountToCall + minRaise;
-
+  disable_moves(){
     this.canCall = false;
     this.canCallIn = false;
     this.canRaise = false;
     this.canFold = false;
     this.canAllIn = false;
+  }
+
+  /**
+   * valid_moves
+   * Input:
+   *  totalCall - The greatest total investment of one player. I.e. player A bets 10, player B
+   *    raises another 10 (puts in 20 chips), the total investment is 20. This is the totalCall
+   *
+   *  minRaise - The minimum which someone is allowed to raise. If what you are calling is less
+   *    than the minimum raise, it means we saw a call-in.
+   *
+   *  blindPlayer - A boolean which is true if the player is a big blind or small blind, and 
+   *    this is their first time acting. Under such circumstances, it looks like they are facing
+   *    a bet which is not a min-raise, but this is false. The player can still act.
+   *
+   * 1) Our stack is less than the amount to call
+   * We can 
+   *   call-in
+   *   fold
+   * 
+   * 2) Our stack is less than the minimum raise amount (but more than the call amount)
+   * We can
+   *   call
+   *   call-in
+   *   fold
+   * 
+   * 3) Our stack is greater than the minimum raise amount
+   * We can
+   *   call
+   *   all-in
+   *   fold
+   *   raise
+   * 
+   * Special cases:
+   * 1) The amount to call is 0 and we are acting:
+   * This means that we are probably opening the action. So we are checking. We should never be
+   * in a position where we are looking to raise ourselves.
+   * 
+   * 2) The amount to call is less than the minRaise:
+   * Somebody else performed an all-in that wasn't large enough for us to re-raise. We can only call
+   * or fold here. However, our call might be a call-in due to our stack size. OR WE ARE THE BLIND
+   *
+   */
+  valid_moves(totalCall, minRaise, blindException = false){
+    this.amountToCall = totalCall - this.totalInvestment;
+    this.minRaiseTotal = this.amountToCall + minRaise;
+
+    this.disable_moves();
 
     // Case 1)
     if (this.stack <= this.amountToCall){
@@ -169,6 +191,7 @@ class Player{
   call(){
     if (this.canCall === false){
       console.log("Invalid move, cannot call?");
+      return false;
     }
     this.place_bet(this.amountToCall);
     return this.amountToCall;

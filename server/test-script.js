@@ -53,30 +53,23 @@ async function test(){
 }
 
 function print_player_actions(player){
-  if (player.canRaise == true){
-    console.log("Your options are: ");
+  console.log("Your options are: ");
+  if (player.canCall === true){
     console.log("Call: " + player.amountToCall);
+  }
+  if (player.canRaise === true){
     console.log("raise: " + player.minRaiseTotal + " to " + player.stack);
+  }
+  if (player.canAllIn === true){
     console.log("all in: " + player.stack);
-    if (player.canFold == true){
+  }
+  if (player.canCallIn === true){
+    console.log("call in: " + player.stack)
+  }
+  if (player.canFold === true){
       console.log("fold");
-    }
   }
 
-  else if (player.canCall == true){
-    console.log("Call: " + player.amountToCall)
-    console.log("all in: " + player.stack)
-    if (player.canFold == true){
-      console.log("fold");
-    }
-  }
-
-  else if (player.canCallIn == true){
-    console.log("all in: " + player.stack)
-    if (player.canFold == true){
-      console.log("fold");
-    }
-  }
 }
 
 process.stdin.on("data", input => {
@@ -112,6 +105,9 @@ process.stdin.on("data", input => {
     gameObject.print_board();
   }
 
+  if (args[0] == "new"){
+    gameObject.new_hand();
+  }
   if (args[0] == "debug"){
     debugger;
   }

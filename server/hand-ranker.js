@@ -1,5 +1,65 @@
+/**
+ * HandRanker
+ * Takes in 7 cards, and then computes the value of said hand.
+ *
+ * Member variables:
+ * constants:
+ * All constants are from strongest to weakest, high to low
+ * STRAIGHT_FLUSH - The strength of a straight flush compared to the other possible hands
+ * QUAD - The strength of a quadruple matched hand
+ * FULL_HOUSE - The strength of a full house
+ * FLUSH - flush
+ * STRAIGHT - straight
+ * TRIPLE - triple
+ * TWO_PAIR - two pair
+ * PAIR - pair
+ * HIGH_CARD - Your hand has none of the above
+ * HAND_SIZE - We are only dealing with 7 cards. If we go above that, something is terribly wrong
+ *
+ * ACE - The number associated with ace, which is 14. King is 13, queen is 12, etc.
+ *
+ * Card organizers:
+ * cardValueHistogram - A histogram counting how often each hand rank occurs in our hand. For
+ *    example, if our hand consisted of:
+ *    4C, 4D, 7H, 7C, 5C, 6S, 8H 
+ *    the card histogram would read as:
+ *    4 - 2
+ *    5 - 1
+ *    6 - 1
+ *    7 - 2
+ *    8 - 1
+ *    It only cares about the value, not the suits. This is useful for finding full houses,
+ *    two pair, straights, etc.
+ * allCards - Literally a list of all the cards that are part of the hand. More of a debugging
+ *    variable at this point I think.
+ * spades - The values of all of the spades in our hand. The hearts, clubs, and diamonds array
+ *    are all of a similar functionality to this variable.
+ *    For example, if our hand was:
+ *    4C, 4D, 7H, 7C, 5C, 6S, 8H 
+ *    The spades array would be:
+ *    6
+ *    The hearts array would be:
+ *    7, 8
+ *    The clubs array would be:
+ *    4, 7, 5
+ *    The diamonds array would be:
+ *    4
+ * hearts - Similar to the spades array. Refer to the spades variable for more info.
+ * clubs - Similar to the spades array. Refer to the spades variable for more info.
+ * diamonds - Similar to the spades array. Refer to the spades variable for more info.
+ * allSuits - Simply all of the suit arrays pushed into this one array. This makes it easier
+ *    to loop through all of the suits.
+ * handRank - The "rank" of the hand, referring to straight flush, quad, full house, etc.
+ * handValue - How strong the hand is within its rank. For example, if we had a quad that
+ *    consisted of quad 4 with an ace kicker, the handValue would be:
+ *    4, 14
+ * handScore - The total score of the hand. The handRank concatenated with the handValue. For
+ *    example, quad 4 with ace kicker will be:
+ *    8, 4, 14
+ */
 class HandRanker{
   constructor(){
+    // constants
     this.STRAIGHT_FLUSH = 9;
     this.QUAD = 8;
     this.FULL_HOUSE = 7;
@@ -9,9 +69,11 @@ class HandRanker{
     this.TWO_PAIR = 3;
     this.PAIR = 2;
     this.HIGH_CARD = 1;
+    this.HAND_SIZE = 7;
 
     this.ACE = 14;
 
+    // Card organizers
     this.cardValueHistogram = new Map();
     this.allCards = [];
     this.spades = [];
@@ -25,11 +87,16 @@ class HandRanker{
     this.allSuits.push(this.clubs);
     this.allSuits.push(this.diamonds);
 
+    // Hand strength
     this.handRank = 0;
     this.handValue = [];
-    this.handScore = 0;
+    this.handScore = null;
   }
 
+  /**
+   * reset
+   * Resets the hand
+   */
   reset(){
     //this.cardValues.length = 0;
     this.allCards.length = 0;
@@ -44,6 +111,13 @@ class HandRanker{
     this.handValue.length = 0;
   }
 
+  /**
+   * add_card
+   * Adds a card to the hand
+   * Puts it in the right suit
+   * Adds it to the histogram
+   * Adds it to the list of cards in the hand
+   */
   add_card(inputCard){
     if (inputCard.suit == "S"){
       this.spades.push(inputCard.rank);
@@ -66,8 +140,20 @@ class HandRanker{
       this.cardValueHistogram.set(inputCard.rank, 1);
     }
     this.allCards.push(inputCard);
+    if (this.allCards.length > this.HAND_SIZE){
+      console.log("HAND SIZE IS TOO BIG");
+    }
   }
 
+  /**
+   * score_hand
+   * We sort the histogram by how often it occurs, then the value. Look at histogram_sort() for
+   * more details.
+   * We then look at the values that occur in said histogram. This is to look for straights
+   * Check if we have a flush
+   * Check if we have a straight
+   * Check for hands that involve matching cards (quad, full house, etc.)
+   */
   score_hand(){
     var sortedCardHistogram = [...this.cardValueHistogram].sort(this.histogram_sort);
     var allCardValues = Array.from(this.cardValueHistogram.keys());
@@ -80,23 +166,48 @@ class HandRanker{
   }
 
   /**
+   * is_a_straight
+   * parameters:
+   *  cardValues - A sorted list of the card values, from highest to lowest
    *
-   * Start from the highest card, and check if it creates a straight, iterate downwards.
+   * Start from the highest card, and check if it creates a straight, iterate downwards. Since
+   * the card values are sorted, we do not have to check card by card. Any possible straight
+   * will follow the pattern of the first and last card of the straight being in the right
+   * spot. For example:
+   * 6, 5, 4, 3, 2
+   * The 6 occurs at index 0, and the 2 occurs at index 4. Two "end cards" that form a straight
+   * will be separated by 4 indices if it is indeed a straight. This is because the array is
+   * sorted.
    *
-   * If we have an ace, check for a, 2, 3, 4, 5
+   * With the above in mind, there are a few cases we need to deal with:
+   *
+   * 1) There are less than 5 card values total (this happens in hands with a lot of pairs,
+   *    or a quad even). Then we definitely do not have a straight.
+   * 2) Loop through the array and perform the check for a straight at each card.
+   *    a) If we have a straight, we stop immediately, because we want the strongest straight
+   *        possible.
+   *
+   * 3) If we have an ace, check for a, 2, 3, 4, 5
+   *
+   * If none of the above pan out, we do not have a straight.
    */
   is_a_straight(cardValues){
+    // 1)
     if (cardValues.length < 5 || this.handRank > this.STRAIGHT){
       return false;
     }
 
+    // 2)
     for (var highCard = 0; highCard <= cardValues.length - 5; highCard++){
+      // 2a)
       if (cardValues[highCard] - cardValues[highCard + 4] === 4){
         this.handRank = this.STRAIGHT;
         this.handValue.push(cardValues[highCard]);
         return true;
       }
     }
+
+    // 3)
     if (cardValues[0] == this.ACE){
       if (cardValues[cardValues.length - 4] == 5){
         this.handRank = this.STRAIGHT;
@@ -108,23 +219,38 @@ class HandRanker{
     return false;
   }
 
+  /**
+   * is_a_flush
+   * Checks if we have a flush.
+   *
+   * 1) Loop through the suits
+   *    a) If there are more than 5 cards, it's a flush
+   *      i) check if we have a straight as well, then it's a straight flush
+   *    b) Otherwise, we just have a flush
+   */
   is_a_flush(){
+    // 1)
     for (const suit of this.allSuits){
+      // 1a)
       if (suit.length > 4){
         suit.sort(this.numeric_sort);
+        // 1ai)
         if (this.is_a_straight(suit)){
           this.handRank = this.STRAIGHT_FLUSH;
         }
+        // 1b)
         else{
           this.handRank = this.FLUSH;;
-          this.handValue.push(suit[0]);
+          for (var i = 0; i < 5; i++){
+            this.handValue.push(suit[i]);
+          }
         }
       }
     }
   }
 
   /**
-   * check_matching_cards()
+   * check_matching_cards
    *   parameters:
    *     cardHistogram - A histogram of the card ranks and their frequency, suit doesn't matter
    *
@@ -249,10 +375,18 @@ class HandRanker{
     }
   }
 
+  /**
+   * numeric_sort
+   * Sorts numbers from highest to lowest (default array does low to high)
+   */
   numeric_sort = (a, b) => {
     return b - a;
   }
 
+  /**
+   * value_sort
+   * Sorts card in a card histogram solely by the value of the card, and ignores its frequency.
+   */
   value_sort = (a, b) => {
     return b[0] - a[0];
   }

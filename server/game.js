@@ -242,7 +242,6 @@ class Game{
       console.log("NEW HAND CALLED WHEN GAME IS NOT DONE");
       return
     }
-    this.handDone = false;
     for (const actor of this.players){
       if (actor !== null){
         actor.new_hand();
@@ -263,6 +262,11 @@ class Game{
     this.sidePotWinners = [];
     this.sidePotTotal = [];
     this.sidePotParticipants = [];
+
+    // Game State
+    this.sharedCards.length = 0;
+    this.playerRanking.length = 0;
+    this.handDone = false;
 
     this.dealer = this.next_player(this.dealer);
     this.post_blinds();

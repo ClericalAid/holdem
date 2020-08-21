@@ -32,9 +32,10 @@ const handRanker = require('./hand-ranker');
  *    and canCallIn are mutually exclusive in terms of being true. It's one or the other.
  */
 class Player{
-  constructor(user){
-    this.name = user.userName;
-    this.uuid = user.socket.id;
+  constructor(username, socketId){
+    this.name = username;
+    this.uuid = socketId; // Placeholder for now. In the future, players will have proper IDs
+    this.socketId = socketId;
 
     // Player state
     this.stack = 200; // user.buyInAmount

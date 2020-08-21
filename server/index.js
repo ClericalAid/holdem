@@ -33,7 +33,7 @@ io.on('connection', (socket) => {
   socket.on("chat message", (message) => {
     messagePacket = {
       message: message,
-      user: userManager.get_user(socket.id).userName,
+      user: userManager.get_user(socket).userName,
     }
     io.emit("chat message", messagePacket);
   });

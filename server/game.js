@@ -137,8 +137,8 @@ class Game{
    *
    * Adds a user to the table.
    */
-  add_user(user){
-    var addPlayer = new player.Player(user);
+  add_user(userName, socketId){
+    var addPlayer = new player.Player(userName, socketId);
     this.players[this.nextEmptySeat] = addPlayer;
     this.update_next_empty_seat();
     this.playerCount += 1;
@@ -149,11 +149,11 @@ class Game{
    *
    * Removes a user from the table
    */
-  remove_user(user){
+  remove_user(userId){
     for (var i = 0; i < this.tableSize; i++){
       if (this.players[i] === null){
       }
-      else if (this.players[i].uuid === user.socket.id){
+      else if (this.players[i].uuid === userId){
         this.players[i] = null;
       }
     }

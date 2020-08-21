@@ -23,26 +23,52 @@ class GameController{
     this.gameObject = new Game.Game();
   }
 
+  /**
+   * Add the user to the room/ game.
+   * Add them to the socket room as well
+   */
   add_user(user){
     user.socket.join(this.socketName);
     this.users.set(user.socket.id);
-    this.gameObject.add_user(user);
+    this.gameObject.add_user(user.userName, user.socket.id);
     this.io.to(this.socketName).emit("GAME_STATE", JSON.stringify(this.gameObject));
-    this.playerCount += 1;
-    if (this.playerCount > this.GAME_IS_PLAYABLE){
+    if (this.gameObject.playerCount > this.GAME_IS_PLAYABLE){
+      //this.start_game();
     }
     //this.io.to(user.socket.id).emit(this.gameObject);
     //user.socket.to(this.socketName).emit("NEW_USER", user);
   }
 
   remove_user(user){
-    this.gameObject.remove_user(user);
+    this.gameObject.remove_user(user.socket.id);
     this.users.delete(user.socket.id);
     this.playerCount -= 1;
   }
 
   start_game(){
     this.gameObject.new_hand();
+  }
+
+  /**
+   * UPDATE METHODS
+   * These are methods used to update the game state on the player's sides. They will be stripped
+   * down and avoid sensitive information.
+   */
+
+  /**
+   * update_hand
+   * Updates the hand of each user
+   *
+   * Go to their socket and tell them their new hand
+   */
+  update_hand(){
+    for (const actor of this.gameObject.players){
+      if (actor !== null){
+        var socketId = actor.socketId;
+      }
+      else{
+      }
+    }
   }
 
   /**

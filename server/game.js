@@ -358,6 +358,14 @@ class Game{
 
     this.pot += this.players[this.smallBlindSeat].place_blind(this.smallBlindAmount);
     this.pot += this.players[this.bigBlindSeat].place_blind(this.bigBlindAmount);
+
+    if (this.players[this.smallBlindSeat].stack === 0){
+      this.allInPlayers += 1;
+    }
+    if (this.players[this.bigBlindSeat].stack === 0){
+      this.allInPlayers += 1;
+    }
+
     this.actor = this.next_player(this.bigBlindSeat);
     this.valid_moves();
   }

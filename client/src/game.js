@@ -25,13 +25,28 @@ export default class Game extends React.Component {
       console.log(userMap);
     });
     this.props.socket.on("new_hand", (cards) => {
+      //hmmmmmmm
     });
     this.props.socket.on("GAME_STATE", (jsonGameObject) => {
       var gameObject = JSON.parse(jsonGameObject);
       console.log(gameObject);
+      var playerCharacter = -1;
+      for (var i = 0; i < gameObject.players.length; i++){
+        var player = gameObject.players[i]
+        if (player !== null){
+          if (player.socketId === this.props.socket.id){
+            player.hero = true;
+          }
+          else{
+            player.hero = false;
+          }
+        }
+      }
+
       this.setState((state, props) => {
         return({
           players: gameObject.players,
+          playerCharacter: playerCharacter,
         });
       });
     });
@@ -50,7 +65,7 @@ export default class Game extends React.Component {
     else{
       return(
         <div className="pure-u-1-3">
-          <Player stack={player.stack} name={player.name} hand={player.hand} empty={false}/>
+          <Player stack={player.stack} name={player.name} hand={player.hand} hero={player.hero} folded={player.folded}/>
         </div>
       );
     }
@@ -92,6 +107,11 @@ class Player extends React.Component {
         </div>
         <div style={{textAlign: "center"}}>
           <p>{this.props.hand.length > 0 && <p>Card1 Card2</p>} Stack: {this.props.stack}</p>
+        </div>
+        <div style={{textAlign: "center"}}>
+          {this.props.hero === true &&
+            <p>PLAYER_CHARACTER</p>
+          }
         </div>
       </div>
     );

@@ -65,6 +65,7 @@ class GameController{
     for (const actor of this.gameObject.players){
       if (actor !== null){
         var socketId = actor.socketId;
+        this.io.to(actor.socketId).emit("new_hand", JSON.stringify(actor.hand));
       }
       else{
       }

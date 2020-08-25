@@ -161,6 +161,9 @@ class Game{
       this.update_next_empty_seat();
     }
     this.playerCount -= 1;
+    if (this.playerCount < this.HEADS_UP){
+      this.handDone = true;
+    }
   }
 
   /**

@@ -1,4 +1,6 @@
 const Game = require('./game');
+const minimalGame = require('./minimal-game');
+const minimalPlayer = require('./minimal-player');
 
 /**
  *  GameController
@@ -13,8 +15,6 @@ class GameController{
     this.socketName = "ROOM_" + roomName;
     this.io = socket;
 
-    //this.tableSize = 6;
-    //this.users.fill(null);
     this.users = new Map();
     this.playerCount = 0;
     this.savedHands = [];
@@ -31,12 +31,14 @@ class GameController{
     user.socket.join(this.socketName);
     this.users.set(user.socket.id);
     this.gameObject.add_user(user.userName, user.socket.id);
-    this.io.to(this.socketName).emit("GAME_STATE", JSON.stringify(this.gameObject));
-    if (this.gameObject.playerCount > this.GAME_IS_PLAYABLE){
-      //this.start_game();
+
+    var minGameObject = this.prepare_minimal_game();
+    this.io.to(user.socket.id).emit("game_state", JSON.stringify(minGameObject));
+    user.socket.to(this.socketName).emit("new_user", JSON.stringify(minGameObject.players));
+    if (this.gameObject.playerCount >= this.GAME_IS_PLAYABLE){
+      console.log("starting game");
+      this.start_game();
     }
-    //this.io.to(user.socket.id).emit(this.gameObject);
-    //user.socket.to(this.socketName).emit("NEW_USER", user);
   }
 
   remove_user(user){
@@ -45,8 +47,9 @@ class GameController{
     this.playerCount -= 1;
   }
 
-  start_game(){
-    this.gameObject.new_hand();
+  async start_game(){
+    await this.gameObject.new_hand();
+    this.update_hand();
   }
 
   /**
@@ -54,6 +57,15 @@ class GameController{
    * These are methods used to update the game state on the player's sides. They will be stripped
    * down and avoid sensitive information.
    */
+
+  /**
+   * update_game_state
+   * Send the game state to a user
+   */
+  update_game_state(){
+    var strippedGame = this.prepare_minimal_game();
+    return strippedGame;
+  }
 
   /**
    * update_hand
@@ -67,35 +79,52 @@ class GameController{
         var socketId = actor.socketId;
         this.io.to(actor.socketId).emit("new_hand", JSON.stringify(actor.hand));
       }
-      else{
-      }
     }
   }
 
   /**
-   * Hides all players hands, so memory reading doesn't allow cheating
-   *
-   * Standard operating procedure:
-   * 1) Obfuscate game state
-   * 2) Send obfuscated game stae
-   * 3) Restore game state and resume
+   * update_players
+   * MAYBE UNNECESSARY
    */
-  obfuscate_game_state(){
-    for (const player of this.gameObject.players){
-      if (player != null){
-        this.savedHands.push(player.hand);
-        player.hand = [null, null];
-      }
-      else{
-        this.savedHands.push(null);
+  update_players(){
+    var playerArray = new Array(this.gameObject.tableSize);
+    for (var i = 0; i < this.gameObject.players.length; i++){
+      playerArray[i] = this.prepare_minimal_player(this.gameObject.players[i]);
+      if (this.gameObject.dealer === i){
+        playerArray[i].dealer = true;
       }
     }
+    return playerArray;
   }
 
   /**
-   * Restores the game state after being obfuscated
+   * DATA PREPARATION METHODS
    */
-  restore_game_state(){
+  prepare_minimal_game(){
+    const minimalGameState = new minimalGame.MinimalGame();
+    minimalGameState.sharedCards = this.gameObject.sharedCards;
+    minimalGameState.dealer = this.gameObject.dealer;
+    minimalGameState.pot = this.gameObject.pot;
+
+    for (var i = 0; i < this.gameObject.players.length; i++){
+      minimalGameState.players[i] = this.prepare_minimal_player(this.gameObject.players[i]);
+      if (minimalGameState.dealer === i && minimalGameState.players[i] !== null){
+        minimalGameState.players[i].dealer = true;
+      }
+    }
+    return minimalGameState;
+  }
+
+  prepare_minimal_player(actor){
+    if (actor === null){
+      return null;
+    }
+    const minimalPlayerObject = new minimalPlayer.MinimalPlayer(actor.name, actor.socketId);
+    minimalPlayerObject.stack = actor.stack;
+    minimalPlayerObject.folded = actor.folded;
+    minimalPlayerObject.dealer = actor.dealer;
+    minimalPlayerObject.totalInvestment = actor.totalInvestment;
+    return minimalPlayerObject;
   }
 }
 

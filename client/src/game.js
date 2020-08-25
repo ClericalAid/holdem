@@ -1,17 +1,21 @@
 import React from 'react';
 import './pure-min.css';
 
+const minimalGame = require("./minimal-game");
+
 export default class Game extends React.Component {
   constructor(props) {
     super(props);
 
-    const MAX_PLAYERS = 6;
+    this.gameObject = new minimalGame.MinimalGame();
+    this.hero = -1;
+    this.dealer = -1;
 
-    var playerArray = new Array(MAX_PLAYERS);
-    playerArray.fill(null);
+    this.BLANK = "HIDDEN_CARD";
+    this.HIDDEN_HAND = [this.BLANK, this.BLANK];
+
     this.state = {
-      playerCharacter: -1,
-      players: playerArray,
+      players: this.gameObject.players,
       observers: [],
       sharedCards: [],
       pot: 0,
@@ -24,38 +28,85 @@ export default class Game extends React.Component {
     this.props.socket.on("join", (userMap) => {
       console.log(userMap);
     });
+
+    /**
+     * new_hand
+     */
     this.props.socket.on("new_hand", (cards) => {
-      //hmmmmmmm
-    });
-    this.props.socket.on("GAME_STATE", (jsonGameObject) => {
-      var gameObject = JSON.parse(jsonGameObject);
-      console.log(gameObject);
-      var playerCharacter = -1;
-      for (var i = 0; i < gameObject.players.length; i++){
-        var player = gameObject.players[i]
-        if (player !== null){
-          if (player.socketId === this.props.socket.id){
-            player.hero = true;
+      console.log(cards);
+      var playerHand = JSON.parse(cards);
+      for (const actor of this.gameObject.players){
+        if (actor !== null){
+          if (actor.hero === false){
+            actor.hand = this.HIDDEN_HAND;
           }
           else{
-            player.hero = false;
+            actor.hand = playerHand;
           }
+        }
+      }
+    });
+
+    this.props.socket.on("new_user", (jsonPlayerArray) => {
+      var serverPlayerArray = JSON.parse(jsonPlayerArray);
+      this.gameObject.players = serverPlayerArray;
+
+      for (const actor of this.gameObject.players){
+        if (actor !== null && actor.uuid === this.props.socket.id){
+          actor.hero = true;
         }
       }
 
       this.setState((state, props) => {
         return({
-          players: gameObject.players,
-          playerCharacter: playerCharacter,
+          players:this.gameObject.players,
+        });
+      })
+    });
+
+    /**
+     * GAME_STATE
+     * Receives the game state from the server. This should be called upon first joining the room
+     * and we know absolutely nothing.
+     *
+     * Get the player information
+     *
+     * Get the board state
+     *
+     * ???
+     *
+     * Profit?
+     */
+    this.props.socket.on("game_state", (jsonGameObject) => {
+      var serverGameObject = JSON.parse(jsonGameObject);
+      this.gameObject.players = serverGameObject.players;
+      this.gameObject.sharedCards = serverGameObject.sharedCards;
+      this.gameObject.dealer = serverGameObject.dealer;
+      this.gameObject.pot = serverGameObject.pot;
+
+      console.log(serverGameObject);
+
+      for (const actor of this.gameObject.players){
+        if (actor !== null && actor.uuid === this.props.socket.id){
+          actor.hero = true;
+        }
+      }
+
+      this.setState((state, props) => {
+        return({
+          players: this.gameObject.players,
+          sharedCards: this.gameObject.sharedCards,
+          pot: this.gameObject.pot,
+          sidePots: this.gameObject.sidePots,
         });
       });
     });
   }
 
-  player_factory = (player) => {
+  player_factory = (player, index) => {
     if (player == null){
       return(
-        <div className="pure-u-1-3">
+        <div className="pure-u-1-3" key={index}>
           <div style={{textAlign: "center"}}>
             <p>EMPTY SEAT</p>
           </div>
@@ -64,7 +115,7 @@ export default class Game extends React.Component {
     }
     else{
       return(
-        <div className="pure-u-1-3">
+        <div className="pure-u-1-3" key={index}>
           <Player stack={player.stack} name={player.name} hand={player.hand} hero={player.hero} folded={player.folded}/>
         </div>
       );
@@ -73,8 +124,9 @@ export default class Game extends React.Component {
 
   render() {
     const half = Math.ceil(this.state.players.length / 2);
-    const players1 = this.state.players.slice(0, half).map(this.player_factory);
-    const players2 = this.state.players.slice(-half).map(this.player_factory);
+    const allPlayers = this.state.players.map(this.player_factory);
+    const players1 = allPlayers.slice(0, half);
+    const players2 = allPlayers.slice(-half);
     return(
       <div>
         <div className="pure-g">

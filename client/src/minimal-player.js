@@ -16,6 +16,7 @@
 class MinimalPlayer{
   constructor(username, socketId){
     this.name = username;
+    this.uuid = socketId;
 
     // Player state
     this.stack = 200; // user.buyInAmount
@@ -95,5 +96,5 @@ class MinimalPlayer{
 }
 
 module.exports = {
-  Player,
+  MinimalPlayer,
 };

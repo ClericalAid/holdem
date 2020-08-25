@@ -1,5 +1,4 @@
-const deck = require('./deck');
-const player = require('./player');
+const minimalPlayer = require('./minimal-player');
 
 /**
  * MinimalGame
@@ -173,5 +172,5 @@ class MinimalGame{
 }
 
 module.exports = {
-  Game,
+  MinimalGame,
 };

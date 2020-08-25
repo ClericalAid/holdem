@@ -1,0 +1,1 @@
+../client/src/minimal-game.js

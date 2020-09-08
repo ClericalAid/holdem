@@ -86,7 +86,7 @@ class GameController{
   hand_done(){
     this.update_cards();
     this.disable_all_players();
-    this.update_player_chips();
+    this.update_win_chips();
     this.gameIsRunning = false;
     if (this.gameObject.playerCount >= this.GAME_IS_PLAYABLE){
       setTimeout(this.start_game, 3000);
@@ -232,7 +232,8 @@ class GameController{
 
   /**
    * update_player_chips
-   * Distributes the pot to the winners
+   * Brute force update all of the players' chips
+   * This function should be made into a "win chips" function I think
    */
   update_player_chips(){
     var allPlayers = this.gameObject.players;
@@ -246,6 +247,17 @@ class GameController{
 
     var packet = [allStacks, this.gameObject.potRemainder]
     this.io.to(this.socketName).emit("update_player_chips", packet);
+  }
+
+  update_win_chips(){
+    var allPlayers = this.gameObject.players;
+    for (var i = 0; i < allPlayers.length; i++){
+      if (allPlayers[i] !== null){
+        var chipWinning = allPlayers[i].chipsWon;
+        var playerIndex = i;
+        this.io.to(this.socketName).emit("update_win_chips", [chipWinning, playerIndex]);
+      }
+    }
   }
 
   /**

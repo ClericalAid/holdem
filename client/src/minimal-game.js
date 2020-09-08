@@ -113,6 +113,11 @@ class MinimalGame{
       }
     }
   }
+
+  win_chips(chipWinning, playerIndex){
+    this.pot -= chipWinning;
+    this.players[playerIndex].win_chips(chipWinning);
+  }
 /**
  * GAMEFLOW
  */

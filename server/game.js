@@ -259,7 +259,7 @@ class Game{
      * of the way the pot is won, it can be cloned.
      * TODO:
      * Solutions:
-     * Class to manage the pot
+     * Class to manage the pot?
      * Make the players actually take from the pot as opposed to relying on math magic and
      * programming logic to maintain the pot
      */

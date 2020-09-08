@@ -115,6 +115,8 @@ export default class Game extends React.Component {
       var allPlayerStacks = packet[0];
       var potRemainder = parseInt(packet[1]);
       this.gameObject.update_player_stacks(allPlayerStacks, potRemainder);
+      console.log("updating player chips");
+      console.log(this.gameObject);
       this.setState((state, props) => {
         return({
           players: this.gameObject.players,
@@ -122,6 +124,19 @@ export default class Game extends React.Component {
         });
       });
     });
+
+    this.props.socket.on("update_win_chips", (packet) => {
+      var chipWinning = parseInt(packet[0]);
+      var playerIndex = parseInt(packet[1]);
+      this.gameObject.win_chips(chipWinning, playerIndex);
+      this.setState((state, props) => {
+        return({
+          players: this.gameObject.players,
+          pot: this.gameObject.pot,
+        });
+      });
+    });
+
 
     /**
      * update_bet
@@ -192,7 +207,6 @@ export default class Game extends React.Component {
       var cardImage = <img src={cardAssets(cardKey)}></img>;
       cardPictures.set(cardName, cardImage);
     }
-    console.log(cardPictures);
   }
   handle_bet_change(event){
     const re = /^[0-9]*$/;

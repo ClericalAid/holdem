@@ -2,7 +2,7 @@ const handRanker = require('./hand-ranker');
 
 /**
  * Player
- * Member variables:
+ * Member variables:  this.chipsWon = 0;
  * name - The player's username/ display name in game
  * unique_id - User's socketID typically. It will be unique to that socket, and I think they
  *    are cryptographically secure.
@@ -30,6 +30,9 @@ const handRanker = require('./hand-ranker');
  * canFold - Is true if the player can fold. Players cannot fold to a bet of 0.
  * canAllIn - Is true if the player can perform an all in which also counts as a raise. canAllIn
  *    and canCallIn are mutually exclusive in terms of being true. It's one or the other.
+ *
+ * Game controller variables:
+ * chipsWon - The amount of chips won in the last hand
  */
 class Player{
   constructor(username, socketId){
@@ -56,6 +59,9 @@ class Player{
     this.canCheck = false; // might not be needed. Check is just calling 0.
     this.canFold = false;
     this.canAllIn = false;
+
+    // Game controller variables
+    this.chipsWon = 0;
   }
 
   /**
@@ -72,6 +78,7 @@ class Player{
    */
   win_chips(chipCount){
     this.stack += chipCount;
+    this.chipsWon = chipCount;
   }
 
   /**
@@ -106,6 +113,8 @@ class Player{
     this.canFold = false;
     this.canAllIn = false;
 
+    // Game controller reset
+    this.chipsWon = 0;
     this.totalInvestment = 0;
   }
 

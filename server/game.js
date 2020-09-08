@@ -24,6 +24,8 @@ const player = require('./player');
  *    This is necessary because the array has players and null values. It needs to overwrite
  *    null values and avoid overwriting players. The array is of a fixed size, therefore it is
  *    up to us to manage the content of the array.
+ * lastAddedPlayer - Points to the seat which just got filled with a player.
+ * lastRemovedPlayer - Pointer to the seat where a player was removed.
  * playerRanking - A sorted array of the players based on how strong their hand is. From 
  *    strongest to weakest. It should always be sorted after being filled up.
  * handDone - A boolean to describe if the game is waiting to start a new hand
@@ -62,6 +64,9 @@ const player = require('./player');
  *    index of sidePots.
  * sidePotTotal - The total amount of chips in each side pot.
  * sidePotParticipants - A list of players contesting each side pot.
+ *
+ * External communication:
+ * gameController - The external object controlling the game object
  */
 class Game{
   constructor(){
@@ -78,6 +83,8 @@ class Game{
     this.players.fill(null);
     this.playerCount = 0;
     this.nextEmptySeat = 0;
+    this.lastAddedPlayer = 0;
+    this.lastRemovedPlayer = 0;
     this.playerRanking = [];
     this.handDone = true;
 
@@ -105,6 +112,9 @@ class Game{
     this.sidePotWinners = [];
     this.sidePotTotal = [];
     this.sidePotParticipants = [];
+
+    // External Communication
+    this.gameController = null;
   }
 
 /**
@@ -140,29 +150,44 @@ class Game{
   add_user(userName, socketId){
     var addPlayer = new player.Player(userName, socketId);
     this.players[this.nextEmptySeat] = addPlayer;
+    this.lastAddedPlayer = this.nextEmptySeat;
     this.update_next_empty_seat();
     this.playerCount += 1;
+    this.foldedPlayers += 1; // players enter into a folded state by default
   }
 
   /**
    * remove_user
    *
    * Removes a user from the table
+   *
+   * Check if the game is still valid/ active after the leaver
    */
   remove_user(userId){
     for (var i = 0; i < this.tableSize; i++){
       if (this.players[i] === null){
       }
       else if (this.players[i].uuid === userId){
+        if (this.players[i].folded === true){
+          this.foldedPlayers -= 1;
+        }
         this.players[i] = null;
+        this.lastRemovedPlayer = i;
       }
     }
+
     if (this.playerCount === this.tableSize){
       this.update_next_empty_seat();
     }
     this.playerCount -= 1;
-    if (this.playerCount < this.HEADS_UP){
-      this.handDone = true;
+
+    var gameStillActive = this.game_still_active();
+    if (!gameStillActive){
+      this.hand_done();
+      return;
+    }
+    else if(this.lastRemovedPlayer === this.actor){
+      this.next_actor();
     }
   }
 
@@ -202,7 +227,13 @@ class Game{
    *
    * 2) If we went full circle, back to the agressor, the round ends (everybody called or folded)
    *
-   * 3) Inform the actor of their valid moves (how much they can raise, etc.)
+   * 3) On the first round, if everybody else folds, the action ends on the big blind who is
+   *    not considered the last raiser, because they are allowed to re-raise. We need to do a
+   *    check in this function to counter this specific case-scenario.
+   *
+   *    We return here, because we do not want the next actor to calculate their valid moves.
+   *
+   * 4) Inform the actor of their valid moves (how much they can raise, etc.)
    */
   next_actor(){
     // 1)
@@ -222,6 +253,23 @@ class Game{
     }
 
     // 3)
+    /**
+     * Okay, I hate putting comments in the code like this, but this else seems to be important.
+     * We do not want case 2 and case 3 to trigger simultaneously. It breaks the game, because
+     * of the way the pot is won, it can be cloned.
+     * TODO:
+     * Solutions:
+     * Class to manage the pot
+     * Make the players actually take from the pot as opposed to relying on math magic and
+     * programming logic to maintain the pot
+     */
+    else if (this.foldedPlayers === this.playerCount - 1){
+      console.log("Game should end here");
+      this.next_round();
+      return;
+    }
+
+    // 4)
     this.valid_moves();
   }
 
@@ -242,7 +290,6 @@ class Game{
    */
   async new_hand(){
     if (this.handDone === false){
-      console.log("NEW HAND CALLED WHEN GAME IS NOT DONE");
       return
     }
     for (const actor of this.players){
@@ -276,10 +323,24 @@ class Game{
     await this.deal_cards();
   }
 
+  /**
+   * hand_done
+   * Marks the hand as being played out. It is important to disable all the players here, because
+   * it is possible for them to send commands to the game object and ruin the game state.
+   */
   hand_done(){
     console.log("HAND IS DONE");
+    if (this.gameController !== null){
+      this.gameController.hand_done();
+    }
+    for (const actor of this.players){
+      if (actor !== null){
+        actor.disable_moves();
+      }
+    }
     this.handDone = true;
   }
+
   /**
    * valid_moves
    * Prompts the player to calculate all possible moves they can make. Usually this involves
@@ -309,6 +370,7 @@ class Game{
   valid_moves(){
     // 1)
     if (this.actor === this.lastRaiser){
+      // TODO: Test if the game works without this line, it might be redundant.
       this.current_actor().disable_moves();
       return;
     }
@@ -461,7 +523,6 @@ class Game{
   next_round(){
     var gameIsActive = this.game_still_active();
     if (!gameIsActive){
-      // Need a function to call when game ends
       this.hand_done();
       return;
     }
@@ -715,10 +776,8 @@ class Game{
    */
   distribute_pot(potAmount, sortedParticipants){
     var winnerCount = this.count_winners(sortedParticipants);
-    while (potAmount % winnerCount !== 0){
-      potAmount -= 1;
-      this.potRemainder += 1;
-    }
+    this.potRemainder = potAmount % winnerCount;
+    potAmount -= this.potRemainder
     var individualWinnings = potAmount / winnerCount;
 
     for (var i = 0; i < winnerCount; i++){
@@ -738,7 +797,7 @@ class Game{
   call(){
     var addToPot = this.current_actor().call();
     if (addToPot === false){
-      return;
+      return false;
     }
     this.pot += addToPot;
     if (this.lastRaiser === -1){
@@ -755,7 +814,7 @@ class Game{
   raise(amount){
     var addToPot = this.current_actor().raise(amount);
     if (addToPot === false){
-      return;
+      return false;
     }
     this.pot += addToPot;
     this.minRaise = this.current_actor().totalInvestment - this.totalCall;
@@ -770,7 +829,7 @@ class Game{
    */
   fold(){
     if (this.current_actor().fold() === false){
-      return;
+      return false;
     }
     this.foldedPlayers += 1;
     this.next_actor();
@@ -799,7 +858,7 @@ class Game{
   all_in(){
     var addToPot = this.current_actor().all_in();
     if (addToPot === false){
-      return;
+      return false;
     }
 
 

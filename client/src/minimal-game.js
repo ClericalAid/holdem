@@ -9,6 +9,10 @@ const minimalPlayer = require('./minimal-player');
  */
 class MinimalGame{
   constructor(){
+    // Constants
+    this.BLANK = "BLANK";
+    this.HIDDEN_HAND = [this.BLANK, this.BLANK];
+
     // Game state
     this.tableSize = 6;
     this.players = new Array(this.tableSize);
@@ -22,24 +26,93 @@ class MinimalGame{
     this.potRemainder = 0;
     this.sidePots = [];
     this.sidePotValues = [];
+
+    // Client-side variables
+    this.hero = -1;
+    this.dealer = -1;
+    this.clientSocketId = null;
+    this.clientSocket = null;
   }
 
+  /**
+   * flash_game_state
+   * Takes the server game state and flashes it to the client side. We need to rebuild objects
+   * so that they have working functions
+   */
+  flash_game_state(serverGameObject){
+    this.sharedCards = serverGameObject.sharedCards;
+    this.dealer = serverGameObject.dealer;
+    this.pot = serverGameObject.pot;
+
+    this.players = new Array(serverGameObject.players.length);
+    this.players.fill(null);
+    for (var i = 0; i < this.players.length; i++){
+      if (serverGameObject.players[i] !== null){
+        this.add_user(serverGameObject.players[i], i);
+      }
+    }
+    for (var i = 0; i < this.players.length; i++){
+      if (this.players[i] !== null && this.players[i].uuid === this.clientSocketId){
+        this.players[i].hero = true;
+        this.hero = i;
+      }
+    }
+  }
+
+  /**
+   * update_shared_cards
+   */
+  update_shared_cards(sharedCards){
+    this.sharedCards = sharedCards;
+  }
   /**
    * add_user
    *
    * Adds a user to the table. Gets the player array from the server
    */
-  add_user(playerArray){
+  add_user(newPlayer, playerIndex){
+    this.players[playerIndex] = new minimalPlayer.MinimalPlayer();
+    this.players[playerIndex].flash_player(newPlayer);
   }
 
   /**
    * remove_user
-   *
-   * Removes a user from the table.
    */
-  remove_user(playerArray){
+  remove_user(playerIndex){
+    this.players[playerIndex] = null;
   }
 
+  /**
+   * get_hero
+   */
+  get_hero(){
+    return this.players[this.hero];
+  }
+
+  /**
+   * update_bet
+   * input:
+   *  totalInvestment - How much the player has invested in this hand, total
+   *  index - The index of the player who had invested that amount
+   */
+  update_bet(betAmount, playerIndex){
+    if (this.players[playerIndex] === null){
+      console.log("A null player placed a bet!");
+      return;
+    }
+    this.players[playerIndex].place_bet(betAmount);
+    this.pot += parseInt(betAmount);
+  }
+
+  update_player_stacks(allPlayerStacks, potRemainder){
+    this.potRemainder = potRemainder;
+    this.pot = this.potRemainder;
+    for (var i = 0; i < this.players.length; i++){
+      if (this.players[i] !== null){
+        this.players[i].stack = allPlayerStacks[i];
+      }
+    }
+  }
 /**
  * GAMEFLOW
  */
@@ -56,7 +129,7 @@ class MinimalGame{
    * SB
    * BB
    */
-  new_hand(){
+  new_hand(cards){
     // Game state
     this.sharedCards.length = 0;
 
@@ -65,8 +138,20 @@ class MinimalGame{
     this.allInPlayers = 0;
 
     // Pot management
-    this.pot = 0;
+    this.pot = this.potRemainder;
     this.sidePotParticipants = [];
+
+    for (const actor of this.players){
+      if (actor !== null){
+        actor.new_hand();
+        if (actor.hero === false){
+          actor.hand = this.HIDDEN_HAND;
+        }
+        else{
+          actor.hand = cards;
+        }
+      }
+    }
   }
 
   /**
@@ -136,38 +221,24 @@ class MinimalGame{
     }
   }
 
-
-/**
- * PLAYER COMMANDS
- */
-
-  /**
-   * call
-   * The actor calls the pot. This function is only used if the player has enough to call. If not,
-   * the player uses the all_in function.
-   */
-  call(){
-  }
-
-  /**
-   * raise
-   * The actor raises the pot. They become the lastRaiser/ aggressor. The minimum raise gets
-   * updated accordingly.
-   */
-  raise(amount){
-  }
-
   /**
    * fold
-   * The actor folds
+   * Mark a player as folded
    */
-  fold(){
+  fold(playerIndex){
+    this.players[playerIndex].folded = true;
+  }
+
+  set_dealer(dealerIndex){
+    this.players[dealerIndex].dealer = true;
   }
 
   /**
    * all_in
+   * Mark a player as all in (Maybe not necessary)
    */
-  all_in(){
+  all_in(playerIndex){
+    this.players[playerIndex].isAllIn = true;
   }
 }
 

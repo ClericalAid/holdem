@@ -25,13 +25,29 @@ class MinimalPlayer{
     this.hand = [];
     this.folded = false;
     this.isAllIn = false;
-    this.sittingOut = false;
+    this.sittingOut = true;
 
     // Bet sizing and valid moves
     this.totalInvestment = 0;
     this.investmentThisRound = 0;
   }
 
+  flash_player(otherPlayer){
+    this.name = otherPlayer.name;
+    this.uuid = otherPlayer.uuid;
+
+    // Player state
+    this.stack = otherPlayer.stack;
+    this.hero = otherPlayer.hero;
+    this.dealer = otherPlayer.dealer;
+    this.folded = otherPlayer.folded;
+    this.isAllIn = otherPlayer.isAllIn;
+    this.sittingOut = otherPlayer.sittingOut;
+
+    // Bet sizing and valid moves
+    this.totalInvestment = otherPlayer.totalInvestment;
+    this.investmentThisRound = otherPlayer.investmentThisRound;
+  }
   /**
    * win_chips
    */
@@ -45,7 +61,7 @@ class MinimalPlayer{
    */
   new_hand(){
     // Player hand reset
-    this.hand.length = 0;
+    this.hand = [];
 
     // Player state reset
     this.folded = false;

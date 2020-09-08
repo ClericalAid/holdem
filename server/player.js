@@ -41,7 +41,7 @@ class Player{
     this.stack = 200; // user.buyInAmount
     this.hand = [];
     this.handRanker = new handRanker.HandRanker();
-    this.folded = false;
+    this.folded = true;
     this.isAllIn = false;
     this.sittingOut = false;
 
@@ -49,6 +49,7 @@ class Player{
     this.totalInvestment = 0;
     this.maxRaise = 0;
     this.amountToCall = 0;
+    this.lastBetSize = 0;
     this.canCall = false;
     this.canCallIn = false;
     this.canRaise = false;
@@ -234,6 +235,7 @@ class Player{
     if (amount > this.stack){
       console.log("Invalid move, bet amount above stack");
     }
+    this.lastBetSize = amount;
     this.totalInvestment += amount;
     this.stack -= amount;
     if (this.stack == 0){

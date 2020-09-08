@@ -36,6 +36,8 @@ async function test(){
   gameObject.add_user(user4.userName, user4.id);
   gameObject.add_user(user5.userName, user5.id);
   
+  gameObject.remove_user(user2.id);
+  gameObject.remove_user(user3.id);
   gameObject.remove_user(user4.id);
   gameObject.remove_user(user5.id);
 
@@ -59,7 +61,6 @@ function print_player_actions(player){
   if (player.canFold === true){
       console.log("fold");
   }
-
 }
 
 process.stdin.on("data", input => {

@@ -1,44 +1,42 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route,
+  Link
+} from "react-router-dom";
+
 import socketioclient from "socket.io-client";
 import './pure-min.css';
-import MessageService from "./messaging";
-import Game from "./game";
 
+import Root from "./root";
 class App extends React.Component {
   constructor() {
     super();
     const endPoint = "http://127.0.0.1:8001"
-    const socket = socketioclient(endPoint);
+    this.socket = socketioclient(endPoint);
     this.state = {
       endpoint: "http://127.0.0.1:8001",
-      socket: socket,
+      socket: this.socket,
       socketId: "",
     };
   }
 
   componentDidMount(){
   }
+
   render() {
     return(
-      <div>
-        <div className="pure-g">
-          <div className="pure-u-1-24">
-          </div>
-          <div className="pure-u-22-24">
-            <Game socket={this.state.socket}/>
-            <MessageService socket={this.state.socket} />
-          </div>
-          <div className="pure-u-1-24">
-          </div>
-        </div>
-      </div>
+      <Root socket={this.state.socket}/>
     );
   }
 }
 
 ReactDOM.render(
-  <App />,
+  <Router>
+    <App />
+  </Router>,
   document.getElementById('root')
 );
 

@@ -49,6 +49,11 @@ class RoomManager{
     currRoom.remove_user(user);
     this.socketRoomMap.delete(user.socket.id);
   }
+
+  get_room_list(){
+    var retArray = Array.from(this.roomMap.keys());
+    return retArray;
+  }
 }
 
 module.exports = {

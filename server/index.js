@@ -11,6 +11,12 @@ const io = socketio(server);
 const userManager = new user_manager.UserManager();
 const roomManager = new room_manager.RoomManager(io);
 
+const ROOM_1 = "DEFAULT_ROOM"
+const ROOM_2 = "ANOTHER_ROOM"
+
+roomManager.create_room(ROOM_1);
+roomManager.create_room(ROOM_2);
+
 app.get('/', (req, res) => {
   console.log(__dirname);
   res.send("Back to the basics");
@@ -42,6 +48,13 @@ io.on('connection', (socket) => {
     console.log("Placing user into a room");
     roomManager.join_room(userManager.get_user(socket), "DEFAULT_ROOM");
   });
+
+  socket.on("submit_username", (userName) => {
+    userManager.set_username(socket, userName);
+    io.to(socket.id).emit("username_submitted", null);
+    io.to(socket.id).emit("room_list", roomManager.get_room_list());
+  });
+
 });
 
 server.listen(8001, () => {

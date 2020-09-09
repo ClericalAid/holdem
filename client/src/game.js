@@ -1,11 +1,9 @@
 import React from 'react';
-import './pure-min.css';
 
 const minimalGame = require("./minimal-game");
 const playerActions = require("./player-actions");
 
 // Images
-const cardImageFolder = "./assets/playing-card-assets/";
 const cardAssets = require.context("./assets/playing-card-assets/", false, /\.(gif|jpg)$/);
 const emptySeat = require('./assets/blank-player.png');
 

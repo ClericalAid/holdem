@@ -181,11 +181,17 @@ class Game{
     }
     this.playerCount -= 1;
 
+    // going any further causes an infinite loop I think
+    if (this.playerCount === 0){
+      return;
+    }
+
     var gameStillActive = this.game_still_active();
     if (!gameStillActive){
       this.hand_done();
       return;
     }
+
     else if(this.lastRemovedPlayer === this.actor){
       this.next_actor();
     }

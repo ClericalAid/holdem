@@ -50,8 +50,6 @@ export default class Game extends React.Component {
   componentDidMount(){
     this.organize_images();
 
-    this.props.socket.emit("join", "");
-
     /**
      * new_hand
      */
@@ -266,7 +264,6 @@ export default class Game extends React.Component {
   }
 
   render() {
-    console.log(this.gameObject);
     const half = Math.ceil(this.state.players.length / 2);
     const allPlayers = this.state.players.map(this.player_factory);
     const players1 = allPlayers.slice(0, half);

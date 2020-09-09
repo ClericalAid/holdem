@@ -1,8 +1,4 @@
 import React from 'react';
-
-import Game from "./game";
-import MessageService from "./messaging";
-import UsernameSelect from "./username-select";
 import {
   BrowserRouter as Router,
   Switch,
@@ -11,6 +7,11 @@ import {
   Redirect
 } from "react-router-dom";
 
+import Game from "./game";
+import MessageService from "./messaging";
+import UsernameSelect from "./username-select";
+import RoomSelect from "./room-select";
+import GameRoom from "./game-room";
 
 export default class Root extends React.Component {
   constructor(props) {
@@ -19,12 +20,14 @@ export default class Root extends React.Component {
 
     this.handle_username_change = this.handle_username_change.bind(this);
     this.handle_username_submit = this.handle_username_submit.bind(this);
+    this.handle_room_select = this.handle_room_select.bind(this);
 
     this.state={
       username: "",
       submittingUsername: false,
       usernameConfirmed: false,
       roomList: [],
+      roomName: "",
     };
   }
 
@@ -38,7 +41,6 @@ export default class Root extends React.Component {
     });
 
     this.props.socket.on("room_list", (roomList) => {
-      console.log(roomList);
       this.setState((state, props) => {
         return ({
           roomList: roomList,
@@ -64,6 +66,14 @@ export default class Root extends React.Component {
     });
   }
 
+  handle_room_select(event){
+    var roomName = event.target.name;
+    this.setState((state, props) => {
+      return({
+        roomName: roomName,
+      });
+    });
+  }
 
   render() {
     return(
@@ -73,9 +83,10 @@ export default class Root extends React.Component {
         <div className="pure-u-22-24">
           <Switch>
             <Route path="/home">
-              <p>What up homie</p>
+              <RoomSelect roomList={this.state.roomList} on_room_select={this.handle_room_select} />
             </Route>
-            <Route path="/room">
+            <Route path="/room/:id">
+              <GameRoom socket={this.props.socket} roomName={this.state.roomName}/>
             </Route>
             <Route path="/">
               <UsernameSelect socket={this.props.socket} on_username_change={this.handle_username_change} on_username_submit={this.handle_username_submit} submittingUsername={this.state.submittingUsername}/>
@@ -87,6 +98,9 @@ export default class Root extends React.Component {
         </div>
         <div className="pure-u-1-24">
         </div>
+        {!this.state.usernameConfirmed &&
+          <Redirect to="/" />
+        }
       </div>
     );
   }

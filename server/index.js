@@ -44,12 +44,13 @@ io.on('connection', (socket) => {
     io.emit("chat message", messagePacket);
   });
 
-  socket.on("join", (packet) => {
+  socket.on("join_room", (roomName) => {
     console.log("Placing user into a room");
-    roomManager.join_room(userManager.get_user(socket), "DEFAULT_ROOM");
+    roomManager.join_room(userManager.get_user(socket), roomName);
   });
 
   socket.on("submit_username", (userName) => {
+    console.log("getting username");
     userManager.set_username(socket, userName);
     io.to(socket.id).emit("username_submitted", null);
     io.to(socket.id).emit("room_list", roomManager.get_room_list());

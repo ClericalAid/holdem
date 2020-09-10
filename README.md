@@ -1,5 +1,12 @@
 # holdem
 
+## Demo
+# Screenshots
+![username select screen](demo-images/user-name-screen.png)
+![room select screen](demo-images/room-select-screen.png)
+![in-game screen](demo-images/in-game-screen.png)
+
+## How to run locally
 ### Install
 In the root folder, as well as the client folder, run the command:
 ```

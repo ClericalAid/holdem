@@ -2,8 +2,8 @@
 
 ## Demo
 # Screenshots
-![[player1 screen in game](demo-images/player1-screen.png)
-![[player2 screen in game](demo-images/player2-screen.png)
+![[player1 screen in game](demo-images/player-1-screen.png)
+![[player2 screen in game](demo-images/player-2-screen.png)
 
 ## How to run locally
 ### Install

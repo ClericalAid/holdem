@@ -19,7 +19,6 @@ export default class RoomSelect extends React.Component {
   room_factory = (room, index) => {
     return(
       <div key={index}>
-        <button className="pure-button" margin="auto" onClick={this.props.on_room_select}>{room}</button>
         <Link to={"/room/" + room}>
           <button className="pure-button" margin="auto" name={room} onClick={this.props.on_room_select}>{room}</button>
 

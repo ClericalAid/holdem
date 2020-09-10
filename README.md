@@ -1,6 +1,6 @@
 # holdem
 
-## Install
+### Install
 In the root folder, as well as the client folder, run the command:
 ```
 npm install

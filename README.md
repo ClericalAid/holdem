@@ -2,8 +2,6 @@
 
 ## Demo
 # Screenshots
-![username select screen](demo-images/username-screen.png)
-![room select screen](demo-images/room-select-screen.png)
 ![in-game screen](demo-images/in-game-screen.png)
 
 ## How to run locally

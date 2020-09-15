@@ -2,9 +2,9 @@
 
 ## Demo
 ### Screenshots
-### Player 1 screen
+## Player 1 screen
 ![player1 screen in game](demo-images/player-1-screen.png)
-### Player 2 screen
+## Player 2 screen
 ![player2 screen in game](demo-images/player-2-screen.png)
 
 ## How to run locally

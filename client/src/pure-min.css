@@ -1,3 +1,22 @@
+/**
+ * PureCSS with added classes to support the poker application
+ */
+.active-player-border {
+  border-color: #516de8;
+  border-width: 10px;
+  border-style: solid;
+}
+
+.player-border {
+  border-color: #7a7a7a;
+  border-width: 10px;
+  border-style: solid;
+}
+
+/**
+ * PureCSS begins here
+ */
+
 /*!
 Pure v2.0.3
 Copyright 2013 Yahoo!
@@ -11,9 +30,7 @@ normalize.css v | MIT License | git.io/normalize
 Copyright (c) Nicolas Gallagher and Jonathan Neal
 */
 
-
 /*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */
-
 html {
 	line-height: 1.15;
 	-webkit-text-size-adjust: 100%

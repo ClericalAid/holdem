@@ -82,6 +82,15 @@ export default class Game extends React.Component {
       });
     });
 
+    this.props.socket.on("active_player", (activePlayerIndex) => {
+      console.log("received active player index", activePlayerIndex);
+      this.gameObject.set_active_player(activePlayerIndex);
+      this.setState((state, props) => {
+        return ({
+          players: this.gameObject.players,
+        });
+      });
+    });
 
     this.props.socket.on("new_user", (newPlayerInfo) => {
       var newPlayer = newPlayerInfo[0];
@@ -257,7 +266,7 @@ export default class Game extends React.Component {
     else{
       return(
         <div className="pure-u-1-3" key={index}>
-          <Player stack={player.stack} name={player.name} hand={player.hand} hero={player.hero} folded={player.folded} sittingOut={player.sittingOut} dealer={player.dealer}/>
+          <Player stack={player.stack} name={player.name} hand={player.hand} hero={player.hero} folded={player.folded} sittingOut={player.sittingOut} dealer={player.dealer} isCurrentActor={player.isCurrentActor}/>
         </div>
       );
     }
@@ -347,8 +356,13 @@ function Player(props){
     card1 = cardPictures.get(cardString1);
     card2 = cardPictures.get(cardString2);
   }
+
+  var borderClass = "player-border";
+  if (props.isCurrentActor === true){
+    borderClass = "active-player-border";
+  }
   return(
-    <div>
+    <div className={borderClass}>
       <div style={{textAlign: "center"}}>
         <p>{props.name}</p>
       </div>

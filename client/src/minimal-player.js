@@ -26,6 +26,7 @@ class MinimalPlayer{
     this.folded = false;
     this.isAllIn = false;
     this.sittingOut = true;
+    this.isCurrentActor = false;
 
     // Bet sizing and valid moves
     this.totalInvestment = 0;

@@ -238,6 +238,17 @@ class MinimalGame{
     this.players[dealerIndex].dealer = true;
   }
 
+  set_active_player(activePlayerIndex){
+    for (const actor of this.players){
+      if (actor !== null){
+        actor.isCurrentActor = false;
+      }
+    }
+    if (this.players[activePlayerIndex] !== null){
+      this.players[activePlayerIndex].isCurrentActor = true;
+    }
+  }
+
   /**
    * all_in
    * Mark a player as all in (Maybe not necessary)

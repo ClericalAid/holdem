@@ -45,8 +45,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on("join_room", (roomName) => {
-    console.log("Placing user into a room");
+    console.log("trying to place user into a room");
     roomManager.join_room(userManager.get_user(socket), roomName);
+  });
+
+  socket.on("leave_room", (roomName) => {
+    console.log("user is leaving a room");
+    roomManager.leave_room(userManager.get_user(socket), roomName);
   });
 
   socket.on("submit_username", (userName) => {

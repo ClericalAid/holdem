@@ -2,38 +2,67 @@ const Game = require('./game');
 const minimalGame = require('./minimal-game');
 const minimalPlayer = require('./minimal-player');
 const playerActions = require('./player-actions');
+const gameControllerSocket = require('./game-controller-socket');
+
 /**
- *  GameController
- *  Changes the game state (acts upon it with the corresponding functions). Reacts to user
- *  input and notifies users of changes.
+ * GameController
+ * Wraps the game object and provides an interface for users to interact with the game object.
+ * 
+ * Member variables:
+ * Constants:
+ * GAME_IS_PLAYABLE - How many players are necessary for the game to start
  *
- *  Manages users and maps them to players in the game object
+ * Room designations:
+ * roomName - The name of the room, this is used for managing rooms
+ * socketName - The name of the 'socket.io room' for communication purposes
+ * io - The server socket which can communicate to users
+ * automaticMode - A boolean to select if a room is manually controlled or not
+ * 
+ * User management and communication:
+ * userSocketBindings - A map which associates a user to their callback functions
+ * cardCount - How many shared cards have been dealt. Flop = 3, turn = 4, river = 5
+ * gameIsRunning - Is true when the game is currently running, in case there are multiple calls
+ *    to start the game somehow
+ *
+ * Game object:
+ * gameObject - The game object which handles running the poker game
+ * gameStartCount - We don't always want the game to just immediately start with just 2 players
+ *    e.g. we are filling up tables for a tournament
  */
 class GameController{
   constructor(roomName, socket){
+    // Constants
+    this.GAME_IS_PLAYABLE = 2;
+
+    // Room designations
     this.roomName = roomName;
     this.socketName = "ROOM_" + roomName;
     this.io = socket;
+    this.automaticMode = false;
 
-    this.users = new Map();
+    // User management and communications
+    this.userSocketBindings = new Map();
     this.cardCount = 0;
     this.gameIsRunning = false;
 
-    // For debugging purposes, don't start the game until 3 players are present
-    this.GAME_IS_PLAYABLE = 2;
+    // Game parameters
     this.gameObject = new Game.Game();
     this.gameObject.gameController = this;
+    this.gameStartCount = 2;
   }
 
   /**
-   * Add the user to the room/ game.
-   * Add them to the socket room as well
-   * Setup their callbacks
+   * add_user
+   * input:
+   *  user - The user which we are adding to this room
+   *
+   * Adds the user to the room and sets up the user to interact with the game room.
+   *
+   * If we are in automatic mode, then the game automatically starts once we have enough players
    */
   add_user(user){
     user.socket.join(this.socketName);
-    this.users.set(user.socket.id);
-    this.gameObject.add_user(user.userName, user.socket.id);
+    this.gameObject.add_user(user.userName, user.socket.id, user);
     this.setup_user_callbacks(user.socket);
 
     var minGameObject = this.prepare_minimal_game();
@@ -42,20 +71,31 @@ class GameController{
     var newPlayerIndex = this.gameObject.lastAddedPlayer;
     var newPlayer = minGameObject.players[newPlayerIndex];
     user.socket.to(this.socketName).emit("new_user", [newPlayer, newPlayerIndex]);
-    if (this.gameObject.playerCount == this.GAME_IS_PLAYABLE){
+    if (this.gameObject.playerCount == this.GAME_IS_PLAYABLE && this.automaticMode){
       console.log("starting game");
+      console.log(this.automaticMode);
       this.start_game();
     }
   }
 
+  /**
+   * remove_user
+   * input:
+   *  user - The user which we are removing from this room
+   *
+   * Takes the user out of the game as well as performs any necessary clean up. If the 
+   * user was set to act, we must update the new actor
+   */
   remove_user(user){
     this.gameObject.remove_user(user.socket.id);
     user.socket.leave(this.socketName);
-    this.users.delete(user.socket.id);
     var playerIndex = this.gameObject.lastRemovedPlayer;
     this.io.to(this.socketName).emit("remove_user",playerIndex);
+    this.unbind_user_callbacks(user.socket);
+    this.userSocketBindings.delete(user.socket.id);
 
     this.update_actor();
+    this.update_active_player();
   }
 
   /**
@@ -82,17 +122,28 @@ class GameController{
    *  This function checks if the game is playable, or more than playable.
    *  The add_user function checks if the game just became playable. Otherwise, a new player
    *  interrupts the currently running game.
+   *
+   * TODO:
+   *  Fix the interaction between this function and the add_user function. Depends on the game
+   *  mode I want to try and introduce
    */
-  hand_done(){
+  hand_done = () => {
     this.update_cards();
     this.disable_all_players();
     this.update_win_chips();
     this.gameIsRunning = false;
     if (this.gameObject.playerCount >= this.GAME_IS_PLAYABLE){
-      setTimeout(this.start_game, 3000);
+      setTimeout(this.start_game, 2000);
     }
   }
 
+  /**
+   * start_game
+   * Begins the game and informs the user of the new board state of said fresh game
+   *
+   * If the game is not playable, do not begin
+   * If the game is already running, do not try to run it again
+   */
   start_game = async () => {
     if (this.gameObject.playerCount < this.GAME_IS_PLAYABLE){
       return;
@@ -114,18 +165,20 @@ class GameController{
     this.update_bet(smallBlindBetAmount, smallBlindIndex);
     this.update_bet(bigBlindBetAmount, bigBlindIndex);
     this.update_actor();
+    this.update_active_player();
     this.update_dealer();
   }
 
   /**
    * UPDATE METHODS
    * These are methods used to update the game state on the player's sides. They will be stripped
-   * down and avoid sensitive information.
+   * down to avoid sensitive information
    */
 
   /**
    * update_game_state
-   * Send the game state to a user
+   * Send a barebones gamestate to the user which is enough for them to play, but does not tell
+   * them any sensitive information i.e. the deck state, other player's hands, etc
    */
   update_game_state(){
     var strippedGame = this.prepare_minimal_game();
@@ -134,9 +187,18 @@ class GameController{
 
   /**
    * update_dealer
+   * Move the dealer token
    */
   update_dealer(){
     this.io.to(this.socketName).emit("dealer", this.gameObject.dealer);
+  }
+
+  /**
+   * update_active_player
+   * Inform the room of which player is currently acting
+   */
+  update_active_player(){
+    this.io.to(this.socketName).emit("active_player", this.gameObject.actor);
   }
 
   /**
@@ -155,24 +217,9 @@ class GameController{
   }
 
   /**
-   * update_players
-   * MAYBE UNNECESSARY
-   */
-  update_players(){
-    var playerArray = new Array(this.gameObject.tableSize);
-    for (var i = 0; i < this.gameObject.players.length; i++){
-      playerArray[i] = this.prepare_minimal_player(this.gameObject.players[i]);
-      if (this.gameObject.dealer === i){
-        playerArray[i].dealer = true;
-      }
-    }
-    return playerArray;
-  }
-
-  /**
    * update_actor
-   * Tell the actor it's his turn
-   * Tell the actor all of their valid moves
+   * Tell the current actor it's their turn
+   * Tell them all of their valid moves
    */
   update_actor(){
     var currActor = this.gameObject.current_actor();
@@ -192,7 +239,9 @@ class GameController{
    * should not be effected even if a player does get to send commands though.
    *
    * This is technically a double redundancy, and the gameObject should have its own function
-   * to disable all players (it does this in its own hand_done function)
+   * to disable all players (it does this in its own hand_done function).
+   *
+   * TODO: Stress test people trying to mess with the game state when they should be disabled
    */
   disable_all_players(){
     var allPlayers = this.gameObject.players;
@@ -210,6 +259,9 @@ class GameController{
    * update_all_players
    * Updates all players' moves. I am unsure whether or not disable_all_players or
    * update_all_players is the way to go. Thus they are both here.
+   *
+   * If the gameObject disables all players, then calling update_all_players after the game
+   * object disables them should suffice. I don't know what I want to do with this honestly
    */
   update_all_players(){
     var allPlayers = this.gameObject.players;
@@ -224,16 +276,24 @@ class GameController{
 
   /**
    * update_bet
-   * Update a players bet amount
+   * Inform the room of a player's bet amount
    */
   update_bet(betAmount, index){
     this.io.to(this.socketName).emit("update_bet", [betAmount, index]);
   }
 
   /**
+   * update_fold
+   * Notify people that a player has folded
+   */
+  update_fold(playerIndex){
+    this.io.to(this.socketName).emit("fold", playerIndex);
+  }
+  /**
    * update_player_chips
    * Brute force update all of the players' chips
    * This function should be made into a "win chips" function I think
+   * TODO: Is this function necessary? Probably remove it
    */
   update_player_chips(){
     var allPlayers = this.gameObject.players;
@@ -249,6 +309,10 @@ class GameController{
     this.io.to(this.socketName).emit("update_player_chips", packet);
   }
 
+  /**
+   * update_win_chips
+   * Inform the room of the winnings of each player
+   */
   update_win_chips(){
     var allPlayers = this.gameObject.players;
     for (var i = 0; i < allPlayers.length; i++){
@@ -262,6 +326,7 @@ class GameController{
 
   /**
    * update_cards
+   * Updates the shared cards if a new card was dealt to the centre
    */
   update_cards(){
     if (this.gameObject.sharedCards.length > this.cardCount){
@@ -272,6 +337,12 @@ class GameController{
 
   /**
    * DATA PREPARATION METHODS
+   * They make sure we only send sensitive information to the right people
+   */
+
+  /**
+   * prepare_minimal_game
+   * Prepares a stripped down gamestate which can be sent to users without any fear
    */
   prepare_minimal_game(){
     const minimalGameState = new minimalGame.MinimalGame();
@@ -288,6 +359,11 @@ class GameController{
     return minimalGameState;
   }
 
+  /**
+   * prepare_minimal_player
+   * Prepares a stripped down player object which has no hand information, and ideally
+   * no socket information, unique user ID, etc.
+   */
   prepare_minimal_player(actor){
     if (actor === null){
       return null;
@@ -305,88 +381,44 @@ class GameController{
    */
   /**
    * setup_user_callbacks
-   * Let the user interact with the game object
+   * input:
+   *  socket - The socket which is associated to the user. If it raises an event, we react
+   *    accordingly
    *
-   * Very specific steps to be taken here:
-   * 1) Get the current actor's index and object
-   * 2) Perform the action
-   * 3) Update the bet
-   *
-   * It has to be in this order, because the "actor" pointer automatically updates when
-   * the action is complete.
+   * Generates the callback functions for the socket.io events, and assigns them accordingly. The
+   * collection of user-socket functions are also saved in a map for unbinding them later
    */
   setup_user_callbacks(socket){
-    socket.on("call", (packet) => {
-      if (this.gameObject.current_actor().socketId === socket.id){
-        var recentActorIndex = this.gameObject.actor;
-        var recentActor = this.gameObject.current_actor();
-        var actionSucceeded = this.gameObject.call();
-        if (actionSucceeded === false){
-          return false;
-        }
+    var userCallbacks = gameControllerSocket(this, socket);
 
-        var betAmount = recentActor.lastBetSize;
-        this.update_bet(betAmount, recentActorIndex);
-        this.update_actor();
-        this.update_cards();
-      }
-      else{
-        console.log("A user is trying to act out of order");
-      }
-    });
+    socket.on("call", userCallbacks.handle_call);
+    socket.on("raise", userCallbacks.handle_raise);
+    socket.on("all_in", userCallbacks.handle_all_in);
+    socket.on("fold", userCallbacks.handle_fold);
+    socket.on("start_game", userCallbacks.handle_start_game);
+    socket.on("print_board", userCallbacks.handle_print_board);
+    socket.on("reset_gamestate", userCallbacks.handle_reset_gamestate);
 
-    socket.on("raise", (raiseAmount) => {
-      raiseAmount = parseInt(raiseAmount);
-      if (this.gameObject.current_actor().socketId === socket.id){
-        var recentActorIndex = this.gameObject.actor;
-        var recentActor = this.gameObject.current_actor();
-        var actionSucceeded = this.gameObject.raise(raiseAmount);
-        if (actionSucceeded === false){
-          return false;
-        }
+    this.userSocketBindings.set(socket.id, userCallbacks);
+  }
 
-        var betAmount = recentActor.lastBetSize;
-        this.update_bet(betAmount, recentActorIndex);
-        this.update_actor();
-        this.update_cards();
-      }
-    });
-
-    socket.on("all_in", (packet) => {
-      if (this.gameObject.current_actor().socketId === socket.id){
-        var recentActorIndex = this.gameObject.actor;
-        var recentActor = this.gameObject.current_actor();
-        var actionSucceeded = this.gameObject.all_in();
-        if (actionSucceeded === false){
-          return false;
-        }
-
-        var betAmount = recentActor.lastBetSize;
-        this.update_bet(betAmount, recentActorIndex);
-        this.update_actor();
-        this.update_cards();
-      }
-    });
-
-    socket.on("fold", (packet) => {
-      if (this.gameObject.current_actor().socketId === socket.id){
-        var recentActorIndex = this.gameObject.actor;
-        var recentActor = this.gameObject.current_actor();
-        var actionSucceeded = this.gameObject.fold();
-        if (actionSucceeded === false){
-          return false;
-        }
-
-        this.io.to(this.socketName).emit("fold", recentActorIndex);
-        this.update_actor();
-        this.update_cards();
-      }
-    });
-
-    socket.on("print_board", (packet) => {
-      console.log("Print was called");
-      this.gameObject.print_board();
-    });
+  /**
+   * unbind_user_callbacks
+   * input:
+   *  socket - The user's socket which is being unbound from this room
+   *
+   * Unbinds the callback functions from the user's socket. If they join another room, these same
+   * events are assigned to them which leads to a lot of weird behaviour.
+   */
+  unbind_user_callbacks(socket){
+    var userCallbacks = this.userSocketBindings.get(socket.id);
+    socket.removeListener("call", userCallbacks.handle_call);
+    socket.removeListener("raise", socket._events.raise);
+    socket.removeListener("all_in", socket._events.all_in);
+    socket.removeListener("fold", socket._events.fold);
+    socket.removeListener("print_board", socket._events.print_board);
+    socket.removeListener("start_game", socket._events.start_game);
+    socket.removeListener("reset_gamestate", socket._events.reset_gamestate);
   }
 }
 

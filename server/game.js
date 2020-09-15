@@ -147,7 +147,7 @@ class Game{
    *
    * Adds a user to the table.
    */
-  add_user(userName, socketId){
+  add_user(userName, socketId, user = null){
     var addPlayer = new player.Player(userName, socketId);
     this.players[this.nextEmptySeat] = addPlayer;
     this.lastAddedPlayer = this.nextEmptySeat;
@@ -183,6 +183,7 @@ class Game{
 
     // going any further causes an infinite loop I think
     if (this.playerCount === 0){
+      this.hand_done();
       return;
     }
 
@@ -333,6 +334,12 @@ class Game{
    * hand_done
    * Marks the hand as being played out. It is important to disable all the players here, because
    * it is possible for them to send commands to the game object and ruin the game state.
+   *
+   * TODO:
+   * Handle cases where a player now has 0 chips
+   * Ideally they'd be removed:
+   *  Give the 'player' object a direct reference to the user which it is representing. Then,
+   *  the game object can call the game-controller's remove_user function.
    */
   hand_done(){
     console.log("HAND IS DONE");
@@ -481,6 +488,11 @@ class Game{
    *    a) We rush to showdown
    */
   game_still_active(){
+    // Game is not running, thus it's not active
+    if (this.handDone === true){
+      return false;
+    }
+
     // 1)
     if (this.foldedPlayers === this.playerCount - 1){
       // 1a)
@@ -968,6 +980,10 @@ class Game{
 /**
  * DEBUG COMMANDS
  */
+  /**
+   * print_board
+   * Prints the board state to the console
+   */
   print_board(){
     for (var i = 0; i < this.players.length; i++){
       var actor = this.players[i];
@@ -983,12 +999,30 @@ class Game{
 
     console.log("Pot: " + this.pot);
     console.log("Side pots: " + this.sidePots);
-    console.log("Dealer: " + this.players[this.dealer].name);
+    if (this.players[this.dealer] === null){
+      console.log("Dealer is null, the index is: ", this.dealer);
+    }
+    else{
+      console.log("Dealer: " + this.players[this.dealer].name);
+    }
     console.log("SB: " + this.smallBlindSeat);
     console.log("BB: " + this.bigBlindSeat);
-    console.log("Actor: " + this.current_actor().name);
-    console.log("min-raise: " + this.minRaise);
-    console.log("call: " + this.current_actor().amountToCall);
+    if (this.current_actor() === null){
+      console.log("Actor is null, the index is: ", this.actor);
+    }
+    else{
+      console.log("Actor: " + this.current_actor().name);
+      console.log("min-raise: " + this.minRaise);
+      console.log("call: " + this.current_actor().amountToCall);
+    }
+  }
+
+  /**
+   * force_reset
+   * Reset the game state i.e. all player's chips
+   */
+  force_reset(){
+
   }
 }
 

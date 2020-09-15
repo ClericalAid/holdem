@@ -34,6 +34,16 @@ class RoomManager{
   }
 
   /**
+   * Leave a room
+   * Very similar to disconnect user...
+   */
+  leave_room(user, roomName){
+    var currRoom = this.socketRoomMap.get(user.socket.id);
+    currRoom.remove_user(user);
+    this.socketRoomMap.delete(user.socket.id);
+  }
+
+  /**
    * Create the room
    */
   create_room(roomName){

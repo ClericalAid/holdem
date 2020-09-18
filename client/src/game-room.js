@@ -12,6 +12,12 @@ import {
 import Game from "./game";
 import MessageService from "./messaging";
 
+/**
+ * GameRoom React.Component
+ * Wraps the game component, and provides any extra interactions like leaving the room. The
+ * game component is just the game, nothing more. Prevents the game component from getting
+ * too bloated.
+ */
 export default class GameRoom extends React.Component {
   constructor(props) {
     super(props);
@@ -28,11 +34,17 @@ export default class GameRoom extends React.Component {
   on_reset_game(){
   }
 
+  /**
+   * on_start_game
+   */
   on_start_game(){
     console.log("trying to start the game");
     this.props.socket.emit("start_game", null);
   }
 
+  /**
+   * on_return_to_room_select
+   */
   on_return_to_room_select(){
     this.props.socket.emit("leave_room", this.props.roomName);
   }

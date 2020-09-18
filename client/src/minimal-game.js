@@ -6,6 +6,22 @@ const minimalPlayer = require('./minimal-player');
  *
  * Keeps track of players
  * Reacts to whatever is pushed from the server
+ *
+ * Member variables:
+ * Constants:
+ * BLANK - Represents a card which is not revealed (usually an opponent's card)
+ * HIDDEN_HAND - Represents a hand of an opponent that is not revealed
+ *
+ * Game state:
+ * tableSize - The size of the table
+ * players - Array of all players
+ * sharedCards - The community cards in the middle
+ * dealer - The array index of the dealer
+ *
+ * Pot management:
+ * pot- The amount of chips in the pot
+ * potRemainder - How many chips leftover in the pot (Not sure if this is necessary)
+ * sidePots - The spread of the chips
  */
 class MinimalGame{
   constructor(){
@@ -17,7 +33,6 @@ class MinimalGame{
     this.tableSize = 6;
     this.players = new Array(this.tableSize);
     this.players.fill(null);
-
     this.sharedCards = [];
     this.dealer = 0;
 

@@ -7,26 +7,39 @@ const playerActions = require("./player-actions");
 const cardAssets = require.context("./assets/playing-card-assets/", false, /\.(gif|jpg)$/);
 const emptySeat = require('./assets/blank-player.png');
 
-const cardPictures = new Map();
+const cardPictures = new Map(); // Should this go in the Game class?
 
+/**
+ * Game React.Component
+ * Renders the game screen/ table where the players play. This class also deals with the
+ * server interactions necessary for the player to play the game.
+ *
+ * Member variables:
+ * gameObject - The gameObject which "plays" the game (as much as the game can be played
+ *  considering it is not a complete game object)
+ * dealer - The array index of the dealer
+ * validMoves - Keeps track of the valid moves which the player can make (raise, call, etc.)
+ *
+ * State variables:
+ * players - The array containing all player objects
+ * observers - People watching the table but not playing (not used right now)
+ * sharedCards - The community cards in the middle
+ * pot - The amount of chips in the pot
+ * sidePots - Side pots if somebody is all in
+ * validMoves - The valid moves which the player can perform
+ * betSize - How much the player is about to put in the pot
+ * amountToCall - How many chips the player needs to put into the pot to call
+ */
 export default class Game extends React.Component {
   constructor(props) {
     super(props);
-    // Constants
-    this.SPADES = 0;
-    this.HEARTS = 1;
-    this.CLUBS = 2;
-    this.DIAMONDS = 3;
 
+    // Constants
+    this.MIDDLE_BOTTOM_PLAYER = 4;
+    // Game state
     this.gameObject = new minimalGame.MinimalGame();
-    this.hero = -1;
     this.dealer = -1;
     this.validMoves = new playerActions.PlayerActions();
-
-    this.spadesPictures = [];
-    this.heartsPictures = [];
-    this.clubsPictures = [];
-    this.diamondsPictures = [];
 
     this.state = {
       players: this.gameObject.players,
@@ -206,6 +219,10 @@ export default class Game extends React.Component {
     });
   }
 
+  /**
+   * organize_images
+   * Takes all the card images and maps them to the values they represent
+   */
   organize_images(){
     for (const cardKey of cardAssets.keys()){
       var cardName = cardKey.slice(2, -4);
@@ -213,6 +230,12 @@ export default class Game extends React.Component {
       cardPictures.set(cardName, cardImage);
     }
   }
+
+  /**
+   * handle_bet_change
+   * Updates the bet amount
+   * TODO: Should the enter key submit the bet?
+   */
   handle_bet_change(event){
     const re = /^[0-9]*$/;
     var newBetSize = event.target.value;
@@ -225,32 +248,58 @@ export default class Game extends React.Component {
     }
   }
 
+  /**
+   * on_call
+   */
   on_call(){
     this.validMoves.ending_turn();
     this.props.socket.emit("call", null);
   }
 
+  /**
+   * on_fold
+   */
   on_fold(){
     this.validMoves.ending_turn();
     this.props.socket.emit("fold", null);
   }
 
+  /**
+   * on_raise
+   */
   on_raise(){
     this.validMoves.ending_turn();
     var betAmount = this.state.betSize;
     this.props.socket.emit("raise", betAmount);
   }
 
+  /**
+   * on_all_in
+   */
   on_all_in(){
     this.validMoves.ending_turn();
     this.props.socket.emit("all_in", null);
   }
 
+  /**
+   * on_print
+   */
   on_print(){
     this.props.socket.emit("print_board", null);
   }
 
+  /**
+   * player_factory
+   * Goes through each player in the array and generates the JSX/ html to render each player
+   *
+   * 1)
+   * If the player is null, it's an empty seat. We will mark it accordingly
+   *
+   * 2)
+   * Otherwise, just generate the player
+   */
   player_factory = (player, index) => {
+    // 1)
     if (player == null){
       return(
         <div className="pure-u-1-3" key={index}>
@@ -263,6 +312,8 @@ export default class Game extends React.Component {
         </div>
       );
     }
+
+    // 2)
     else{
       return(
         <div className="pure-u-1-3" key={index}>
@@ -272,11 +323,39 @@ export default class Game extends React.Component {
     }
   }
 
+  /**
+   * rotate_player_array
+   * input:
+   *  playerArray - the array of player objects
+   *  heroIndex - The index of the hero (the player who needs to be at index 5)
+   *
+   * Rotates the player array such that the hero is at array index 5. We create a new array and
+   * just fill it in with a cyclical iterator.
+   */
+  rotate_player_array(playerArray, heroIndex){
+    var retArray = new Array(playerArray.length);
+    var playerArrayPointer = heroIndex;
+    var retArrayPointer = this.MIDDLE_BOTTOM_PLAYER;
+    for (var i = 0; i < playerArray.length; i++){
+      retArray[retArrayPointer] = playerArray[playerArrayPointer];
+      retArrayPointer += 1;
+      playerArrayPointer += 1;
+      retArrayPointer = retArrayPointer % playerArray.length;
+      playerArrayPointer = playerArrayPointer % playerArray.length;
+    }
+    return retArray;
+  }
   render() {
     const half = Math.ceil(this.state.players.length / 2);
     const allPlayers = this.state.players.map(this.player_factory);
+    const rotatedPlayerArray = this.rotate_player_array(allPlayers, this.gameObject.hero);
+    /*
     const players1 = allPlayers.slice(0, half);
     const players2 = allPlayers.slice(-half);
+    */
+    const players1 = rotatedPlayerArray.slice(0, half);
+    const players2 = rotatedPlayerArray.slice(-half);
+    players2.reverse();
 
     var betButton = null;
     if (this.state.validMoves.canRaise){
@@ -345,6 +424,12 @@ export default class Game extends React.Component {
   }
 }
 
+/**
+ * Player()
+ * input:
+ *  props - React props
+ * Renders players
+ */
 function Player(props){
   var card1 = cardPictures.get("BLANK");
   var card2 = cardPictures.get("BLANK");
@@ -372,7 +457,7 @@ function Player(props){
             {card1}{card2}
           </div>
         }
-        {props.hand.length > 0 && props.hero === true &&
+        {props.hand.length > 0 && props.hero === true && props.folded === false &&
           <div>
             {card1}{card2}
           </div>

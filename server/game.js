@@ -48,8 +48,6 @@ const player = require('./player');
  *
  * Pot Management:
  * pot - The total amount of chips in the pot
- * potRemainder - The amount left over in the pot if it were split multiple ways but did not
- *    divide evenly.
  * totalCall - The total amount of chips needed to call. However, it looks at the running
  *    total throughout the whole game. That means that if you bet 50 chips pre-flop, then 50
  *    chips post-flop, the total is 100.
@@ -105,7 +103,6 @@ class Game{
 
     // Pot management
     this.pot = 0;
-    this.potRemainder = 0;
     this.totalCall = 0;
     this.minRaise = 0;
     this.sidePots = [];
@@ -313,16 +310,18 @@ class Game{
     // Pot management
     this.totalCall = 0;
     this.minRaise = 0;
-    this.pot = this.potRemainder;
-    this.potRemainder = 0;
-    this.sidePots.length = 0;
+    var potRemainder = this.sidePotTotal.reduce((a, b) => {
+      return a + b;
+    }, 0); // the pot remainder is the remainder found in each side pot
+    this.pot = potRemainder;
+    this.sidePots = [];
     this.sidePotWinners = [];
     this.sidePotTotal = [];
     this.sidePotParticipants = [];
 
     // Game State
-    this.sharedCards.length = 0;
-    this.playerRanking.length = 0;
+    this.sharedCards = [];
+    this.playerRanking = [];
     this.handDone = false;
 
     this.dealer = this.next_player(this.dealer);
@@ -499,6 +498,7 @@ class Game{
       for (const actor of this.players){
         if (actor !== null && !actor.folded){
           actor.win_chips(this.pot);
+          this.pot = 0;
         }
       }
       return false;
@@ -779,7 +779,7 @@ class Game{
    */
   distribute_side_pots(){
     for (var i = 0; i < this.sidePots.length; i++){
-      this.distribute_pot(this.sidePotTotal[i], this.sidePotParticipants[i]);
+      this.sidePotTotal[i] = this.distribute_pot(this.sidePotTotal[i], this.sidePotParticipants[i]);
     }
   }
 
@@ -789,18 +789,25 @@ class Game{
    *  potAmount - The amount of chips in said pot (could be a side pot)
    *  sortedParticipants - The participants in said pot, sorted by strongest hand to weakest
    *
+   * returns:
+   * The remainder of chips leftover
+   *
    * Distributes the pot amongst the winners and any remaining chips are added onto next round's
    * pot.
+   *
+   * TODO: chips will disappear in a split pot/ mess up we need to fix this
+   * When a player wins chips, the pot subtracts that amount. Therefore, everything will always
+   * sum up. No more math magic shenanigans
    */
   distribute_pot(potAmount, sortedParticipants){
     var winnerCount = this.count_winners(sortedParticipants);
-    this.potRemainder = potAmount % winnerCount;
-    potAmount -= this.potRemainder
-    var individualWinnings = potAmount / winnerCount;
+    var individualWinnings = Math.floor(potAmount / winnerCount);
 
     for (var i = 0; i < winnerCount; i++){
       sortedParticipants[i].win_chips(individualWinnings);
+      potAmount -= individualWinnings;
     }
+    return potAmount;
   }
 
 /**
@@ -944,7 +951,7 @@ class Game{
    */
   add_side_pot(potSize){
     // 1)
-    if (this.sidePots.length == 0){
+    if (this.sidePots.length === 0){
       this.sidePots.push(potSize);
       return;
     }

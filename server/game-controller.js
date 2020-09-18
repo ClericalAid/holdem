@@ -413,12 +413,12 @@ class GameController{
   unbind_user_callbacks(socket){
     var userCallbacks = this.userSocketBindings.get(socket.id);
     socket.removeListener("call", userCallbacks.handle_call);
-    socket.removeListener("raise", socket._events.raise);
-    socket.removeListener("all_in", socket._events.all_in);
-    socket.removeListener("fold", socket._events.fold);
-    socket.removeListener("print_board", socket._events.print_board);
-    socket.removeListener("start_game", socket._events.start_game);
-    socket.removeListener("reset_gamestate", socket._events.reset_gamestate);
+    socket.removeListener("raise", userCallbacks.handle_raise);
+    socket.removeListener("all_in", userCallbacks.handle_all_in);
+    socket.removeListener("fold", userCallbacks.handle_fold);
+    socket.removeListener("start_game", userCallbacks.handle_start_game);
+    socket.removeListener("print_board", userCallbacks.handle_print_board);
+    socket.removeListener("reset_gamestate", userCallbacks.handle_reset_gamestate);
   }
 }
 

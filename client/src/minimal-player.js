@@ -33,6 +33,14 @@ class MinimalPlayer{
     this.investmentThisRound = 0;
   }
 
+  /**
+   * flash_player
+   * input:
+   *  otherPlayer - The player sent by the server, which we are flashing onto this object
+   * Takes in a player object and makes a copy of it. Objects passed via sockets do not have
+   * function information, therefore they need to be remade. Or we can treat them lik C structures
+   * but nobody wants to do that. Haha... unless?
+   */
   flash_player(otherPlayer){
     this.name = otherPlayer.name;
     this.uuid = otherPlayer.uuid;

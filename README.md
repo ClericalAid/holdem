@@ -1,4 +1,4 @@
-# holdem
+# OpenPoker
 
 ## Demo
 ### Screenshots

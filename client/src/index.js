@@ -9,8 +9,8 @@ import {
 
 import socketioclient from "socket.io-client";
 import './pure-min.css';
-
 import Root from "./root";
+
 class App extends React.Component {
   constructor() {
     super();

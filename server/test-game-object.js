@@ -12,29 +12,35 @@ async function test(){
   var user5 = {};
 
   user0.userName = "rabbit";
-  user0.id = "socket0";
+  user0.socket = {};
+  user0.socket.id = "socket0";
 
   user1.userName = "snake";
-  user1.id = "socket1";
+  user1.socket = {};
+  user1.socket.id = "socket1";
 
   user2.userName = "tiger";
-  user2.id = "socket2";
+  user2.socket = {};
+  user2.socket.id = "socket2";
 
   user3.userName = "horse";
-  user3.id = "socket3";
+  user3.socket = {};
+  user3.socket.id = "socket3";
 
   user4.userName = "chicken";
-  user4.id = "socket4";
+  user4.socket = {};
+  user4.socket.id = "socket4";
 
   user5.userName = "mouse";
-  user5.id = "socket5";
+  user5.socket = {};
+  user5.socket.id = "socket5";
 
-  gameObject.add_user(user0.userName, user0.id);
-  gameObject.add_user(user1.userName, user1.id);
-  gameObject.add_user(user2.userName, user2.id);
-  gameObject.add_user(user3.userName, user3.id);
-  gameObject.add_user(user4.userName, user4.id);
-  gameObject.add_user(user5.userName, user5.id);
+  gameObject.add_user(user0);
+  gameObject.add_user(user1);
+  gameObject.add_user(user2);
+  gameObject.add_user(user3);
+  gameObject.add_user(user4);
+  gameObject.add_user(user5);
   
   gameObject.remove_user(user2.id);
   gameObject.remove_user(user3.id);

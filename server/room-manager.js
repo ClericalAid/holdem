@@ -49,7 +49,7 @@ class RoomManager{
       return;
     }
     var currRoom = this.socketRoomMap.get(user.socket.id);
-    currRoom.remove_user(user);
+    currRoom.disconnect_user(user);
     this.socketRoomMap.delete(user.socket.id);
   }
 

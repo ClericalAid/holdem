@@ -15,6 +15,10 @@
  */
 module.exports = function(gameController, socket){
   function valid_user(){
+    if (gameController.gameObject.current_actor() === null){
+      console.log("current actor is null, suspicious activity in room: ", gameController.roomName);
+      return false;
+    }
     return (gameController.gameObject.current_actor().socketId === socket.id);
   }
 

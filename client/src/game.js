@@ -1,4 +1,12 @@
 import React from 'react';
+import Popup from 'reactjs-popup';
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route,
+  Link,
+  Redirect
+} from "react-router-dom";
 
 const minimalGame = require("./minimal-game");
 const playerActions = require("./player-actions");
@@ -7,7 +15,7 @@ const playerActions = require("./player-actions");
 const cardAssets = require.context("./assets/playing-card-assets/", false, /\.(gif|jpg)$/);
 const emptySeat = require('./assets/blank-player.png');
 
-const cardPictures = new Map(); // Should this go in the Game class?
+const cardPictures = new Map(); // Maybe this should be moved into game object
 
 /**
  * Game React.Component
@@ -16,7 +24,7 @@ const cardPictures = new Map(); // Should this go in the Game class?
  *
  * Member variables:
  * gameObject - The gameObject which "plays" the game (as much as the game can be played
- *  considering it is not a complete game object)
+ *    considering it is not a complete game object)
  * dealer - The array index of the dealer
  * validMoves - Keeps track of the valid moves which the player can make (raise, call, etc.)
  *
@@ -50,6 +58,7 @@ export default class Game extends React.Component {
       validMoves: this.validMoves,
       betSize: 0,
       amountToCall: 0,
+      playerLost: false,
     };
 
     this.handle_bet_change = this.handle_bet_change.bind(this);
@@ -77,6 +86,10 @@ export default class Game extends React.Component {
       });
     });
 
+    /**
+     * shared_cards
+     * Update the shared cards
+     */
     this.props.socket.on("shared_cards", (sharedCards) => {
       this.gameObject.update_shared_cards(sharedCards);
       this.setState((state, props) => {
@@ -86,6 +99,10 @@ export default class Game extends React.Component {
       });
     });
 
+    /**
+     * dealer
+     * Which player is the dealer
+     */
     this.props.socket.on("dealer", (dealerIndex) => {
       this.gameObject.set_dealer(dealerIndex);
       this.setState((state, props) => {
@@ -95,6 +112,10 @@ export default class Game extends React.Component {
       });
     });
 
+    /**
+     * active_player
+     * Which player is currently acting
+     */
     this.props.socket.on("active_player", (activePlayerIndex) => {
       console.log("received active player index", activePlayerIndex);
       this.gameObject.set_active_player(activePlayerIndex);
@@ -105,6 +126,9 @@ export default class Game extends React.Component {
       });
     });
 
+    /**
+     * new_user
+     */
     this.props.socket.on("new_user", (newPlayerInfo) => {
       var newPlayer = newPlayerInfo[0];
       var newPlayerIndex = newPlayerInfo[1];
@@ -116,6 +140,9 @@ export default class Game extends React.Component {
       })
     });
 
+    /**
+     * remove_user
+     */
     this.props.socket.on("remove_user", (playerIndex) => {
       this.gameObject.remove_user(playerIndex);
       this.setState((state, props) => {
@@ -143,6 +170,10 @@ export default class Game extends React.Component {
       });
     });
 
+    /**
+     * update_win_chips
+     * Distribute chips amongst winning players
+     */
     this.props.socket.on("update_win_chips", (packet) => {
       var chipWinning = parseInt(packet[0]);
       var playerIndex = parseInt(packet[1]);
@@ -173,18 +204,36 @@ export default class Game extends React.Component {
     });
 
     /**
-     *
+     * fold
+     * A player has folded
      */
     this.props.socket.on("fold", (playerIndex) => {
       this.gameObject.fold(playerIndex);
     });
 
+    /**
+     * valid_moves
+     * The server is informing us of our valid moves
+     */
     this.props.socket.on("valid_moves", (bettingInformation) => {
       this.validMoves.import_from_server(bettingInformation);
       this.setState((state, props) => {
         return({
           validMoves: this.validMoves,
           betSize: this.validMoves.minRaiseTotal,
+        });
+      });
+    });
+
+    /**
+     * user_lost
+     * The user has lost the game (their stack is at 0)
+     */
+    this.props.socket.on("user_lost", () => {
+      console.log("lost game, return to room select?");
+      this.setState((state, props) => {
+        return({
+          playerLost: true,
         });
       });
     });
@@ -385,6 +434,11 @@ export default class Game extends React.Component {
 
     return(
       <div>
+        <Popup open={this.state.playerLost}>
+          <div className="modal">
+            USER LOST!
+          </div>
+        </Popup>
         <div className="pure-g">
           {players1}
           <div className="pure-u-1">

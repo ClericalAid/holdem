@@ -42,6 +42,7 @@ class GameController{
 
     // User management and communications
     this.userSocketBindings = new Map();
+    this.observers = new Map();
     this.cardCount = 0;
     this.gameIsRunning = false;
 
@@ -62,7 +63,7 @@ class GameController{
    */
   add_user(user){
     user.socket.join(this.socketName);
-    this.gameObject.add_user(user.userName, user.socket.id, user);
+    this.gameObject.add_user(user);
     this.setup_user_callbacks(user.socket);
 
     var minGameObject = this.prepare_minimal_game();
@@ -87,15 +88,78 @@ class GameController{
    * user was set to act, we must update the new actor
    */
   remove_user(user){
-    this.gameObject.remove_user(user.socket.id);
-    user.socket.leave(this.socketName);
+    console.log("I SHOULD NOT BE CALLED");
+    this.gameObject.remove_user(user);
     var playerIndex = this.gameObject.lastRemovedPlayer;
     this.io.to(this.socketName).emit("remove_user",playerIndex);
     this.unbind_user_callbacks(user.socket);
     this.userSocketBindings.delete(user.socket.id);
+    user.socket.leave(this.socketName);
 
     this.update_actor();
     this.update_active_player();
+  }
+
+  /**
+   * disconnect_user
+   * input:
+   *    user
+   * Make the user check/fold until the hand ends, at which point they get removed
+   * 1)
+   *    If the user is set to act, we need to take control
+   *    This can be handled by just telling us to update the current actor. It's cheeky, but
+   *    it will work
+   */
+  disconnect_user(user){
+    this.gameObject.disconnect_user(user);
+    var playerIndex = this.gameObject.lastDisconnectedPlayer;
+    //this.io.to(this.socketName).emit("disconnect_user", playerIndex);
+
+    // 1)
+    this.update_actor();
+  }
+
+  /**
+   * disconnected_user_action
+   * Make the disconnected user act
+   */
+  disconnected_user_action(){
+    console.log("A disconnected user is acting");
+    if (this.gameObject.current_actor().canFold){
+      this.gameObject.fold();
+    }
+    else{
+      this.gameObject.call();
+    }
+
+    this.update_actor();
+    this.update_cards();
+    this.update_active_player();
+  }
+
+  /**
+   * kick_user
+   * input:
+   *    user - The user which is getting removed
+   * Removes the user, against their will (they reached 0 chips or something like that) give them a
+   * message indicating that they lost
+   */
+  kick_user(user){
+    this.io.to(user.socket.id).emit("user_lost", null);
+    this.remove_user(user)
+  }
+
+  /**
+   * convert_player_to_observer
+   * input:
+   *  user - The user which we are moving over to an observer
+   * IMPORTANT:
+   * Function not implemented yet, observer feature will not exist for now. Keep the game as basic
+   * as possible
+   */
+  convert_player_to_observer(user){
+    this.unbind_user_callbacks(user.socket);
+    this.userSocketBindings.delete(user.socket.id);
   }
 
   /**
@@ -220,9 +284,20 @@ class GameController{
    * update_actor
    * Tell the current actor it's their turn
    * Tell them all of their valid moves
+   *
+   * Weird cases:
+   * 1) The actor is a disconnected user
+   *    Make them perform the default action for a disconnected user
    */
   update_actor(){
     var currActor = this.gameObject.current_actor();
+
+    // 1)
+    if (currActor.disconnected === true){
+      this.disconnected_user_action();
+      return;
+    }
+
     if (currActor === null){
       console.log("Tried to update a null actor, most likely somebody left the game");
       return;

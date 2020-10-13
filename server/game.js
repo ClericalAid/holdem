@@ -1,5 +1,6 @@
 const deck = require('./deck');
 const player = require('./player');
+const playerUserBinding = require('./player-user-binding');
 
 /**
  * Game
@@ -65,6 +66,8 @@ const player = require('./player');
  *
  * External communication:
  * gameController - The external object controlling the game object
+ * playerUserMapping - Mapping in-game player objects to their user. This makes it easier 
+ *    to interact with the game-controller
  */
 class Game{
   constructor(){
@@ -83,6 +86,7 @@ class Game{
     this.nextEmptySeat = 0;
     this.lastAddedPlayer = 0;
     this.lastRemovedPlayer = 0;
+    this.lastDisconnectedPlayer = 0;
     this.playerRanking = [];
     this.handDone = true;
 
@@ -112,6 +116,7 @@ class Game{
 
     // External Communication
     this.gameController = null;
+    this.playerUserMapping = new playerUserBinding.PlayerUserBinding()
   }
 
 /**
@@ -144,13 +149,15 @@ class Game{
    *
    * Adds a user to the table.
    */
-  add_user(userName, socketId, user = null){
-    var addPlayer = new player.Player(userName, socketId);
+  add_user(user){
+    var addPlayer = new player.Player(user.userName, user.socket.id);
     this.players[this.nextEmptySeat] = addPlayer;
     this.lastAddedPlayer = this.nextEmptySeat;
     this.update_next_empty_seat();
     this.playerCount += 1;
     this.foldedPlayers += 1; // players enter into a folded state by default
+
+    this.playerUserMapping.add_entry(addPlayer, user, this.lastAddedPlayer);
   }
 
   /**
@@ -159,8 +166,15 @@ class Game{
    * Removes a user from the table
    *
    * Check if the game is still valid/ active after the leaver
+   *
+   * This function is being reworked:
+   * 1) remove_player
+   *    Simply removes a player
+   * 2) disconnect_player
+   *    Marks a player as disconnected, and places them in a state of auto-folding
    */
-  remove_user(userId){
+  remove_user(user){
+    var userId = user.socket.id
     for (var i = 0; i < this.tableSize; i++){
       if (this.players[i] === null){
       }
@@ -196,6 +210,31 @@ class Game{
   }
 
   /**
+   * remove_player
+   * input:
+   *    player
+   * Removes the player
+   */
+  remove_player(player){
+    var playerIndex = this.playerUserMapping.get_index(player)
+    this.players[playerIndex] = null;
+    this.lastRemovedPlayer = playerIndex;
+    this.playerCount -= 1;
+  }
+
+  /**
+   * disconnect_user
+   * input:
+   *    user - 
+   * Marks a player as disconnected (they now auto-fold / check)
+   */
+  disconnect_user(user){
+    var actor = this.playerUserMapping.get_player(user);
+    this.lastDisconnectedPlayer = this.playerUserMapping.get_index(actor);
+    actor.disconnected = true;
+  }
+
+  /**
    * cyclic_increment
    *
    * Increments a number but restarts it at 0 when a certain limit has been reached.
@@ -228,6 +267,9 @@ class Game{
    *    Special Case:
    *      a) The last raiser is all-in. They cannot act, but we have went full circle. Break
    *      the loop
+   *
+   *    TODO: Hard prevent any potential infinite-loop by checking the respective variable
+   *      And forcing the function to exit beforehand if an inf loop would occur
    *
    * 2) If we went full circle, back to the agressor, the round ends (everybody called or folded)
    *
@@ -339,18 +381,34 @@ class Game{
    * Ideally they'd be removed:
    *  Give the 'player' object a direct reference to the user which it is representing. Then,
    *  the game object can call the game-controller's remove_user function.
+   *
+   * If a player has 0 chips, we:
+   *  Notify the game-controller, and have them deal with it?
+   *  - Remove user from game (make their seat null)
+   *  - Turn them into an observer (observers are handled by the game-controller)
    */
   hand_done(){
     console.log("HAND IS DONE");
+    this.handDone = true;
+    debugger;
+
     if (this.gameController !== null){
       this.gameController.hand_done();
     }
     for (const actor of this.players){
       if (actor !== null){
         actor.disable_moves();
+        if (actor.disconnected === true){
+          this.remove_player(player);
+        }
+        /*
+        if (actor.stack == 0){
+          var user = this.playerUserMapping.get_user(actor)
+          this.gameController.kick_user(user)
+        }
+        */
       }
     }
-    this.handDone = true;
   }
 
   /**
@@ -797,7 +855,7 @@ class Game{
    *
    * TODO: chips will disappear in a split pot/ mess up we need to fix this
    * When a player wins chips, the pot subtracts that amount. Therefore, everything will always
-   * sum up. No more math magic shenanigans
+   * sum up. No more math magic shenanigans. Needs testing
    */
   distribute_pot(potAmount, sortedParticipants){
     var winnerCount = this.count_winners(sortedParticipants);

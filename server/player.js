@@ -4,7 +4,7 @@ const handRanker = require('./hand-ranker');
  * Player
  * Member variables:  this.chipsWon = 0;
  * name - The player's username/ display name in game
- * unique_id - User's socketID typically. It will be unique to that socket, and I think they
+ * uuid - User's socketID typically. It will be unique to that socket, and I think they
  *    are cryptographically secure.
  *
  * Player state:
@@ -47,12 +47,12 @@ class Player{
     this.folded = true;
     this.isAllIn = false;
     this.sittingOut = false;
+    this.disconnected = false;
 
     // Bet sizing and valid moves
     this.totalInvestment = 0;
     this.maxRaise = 0;
     this.amountToCall = 0;
-    this.lastBetSize = 0;
     this.canCall = false;
     this.canCallIn = false;
     this.canRaise = false;
@@ -62,6 +62,7 @@ class Player{
 
     // Game controller variables
     this.chipsWon = 0;
+    this.lastBetSize = 0;
   }
 
   /**

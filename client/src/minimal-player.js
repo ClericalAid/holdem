@@ -2,16 +2,24 @@
  * MinimalPlayer
  * The player for the client. It is a stripped down version of what would exist on the backend.
  *
- * Stripped down basics include the following:
- * How many chips this player has in the pot
- *
- * Update when the player puts more in the pot
- *
- * Know if player has folded or is all in
- *
- * Which player is hero?
- *
  * Member variables:
+ * name - The player's name
+ * uuid - Usually, it's a player's socket.id but this should be changed in the future. It might
+ *    expose a vulnerability having the other users' socket.id available
+ *
+ * Player state:
+ * stack - How many chips the player currently has
+ * hero - Is true if this player object is the one controlled by the user
+ * dealer - Is true if the player is currently the dealer
+ * hand - The players' hand
+ * folded - Is true if the player folded
+ * isAllIn - Is true if the player is all in
+ * sittingOut - Is true if the player is sitting out (currently there is no way to sit out)
+ * isCurrentActor - Is true if this player object is currently deciding whether to fold, raise, etc.
+ *
+ * Betting:
+ * totalInvestment - How many chips the player has bet in total for this hand
+ * investmentThisRound - How many chips the player has bet in this current round of betting
  */
 class MinimalPlayer{
   constructor(username, socketId){
@@ -78,17 +86,14 @@ class MinimalPlayer{
     this.sittingOut = false;
     this.dealer = false;
 
-    // Bet sizing reset
+    // Betting information:
     this.totalInvestment = 0;
-    this.canCall = false;
-    this.canCallIn = false;
-    this.canRaise = false;
-    this.canFold = false;
-    this.canAllIn = false;
-
-    this.totalInvestment = 0;
+    this.investmentThisRound = 0;
   }
 
+  new_round(){
+    this.investmentThisRound = 0;
+  }
   /**
    * disable_moves
    * Used when the game is done/ player is on standby

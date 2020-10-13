@@ -161,55 +161,6 @@ class Game{
   }
 
   /**
-   * remove_user
-   *
-   * Removes a user from the table
-   *
-   * Check if the game is still valid/ active after the leaver
-   *
-   * This function is being reworked:
-   * 1) remove_player
-   *    Simply removes a player
-   * 2) disconnect_player
-   *    Marks a player as disconnected, and places them in a state of auto-folding
-   */
-  remove_user(user){
-    var userId = user.socket.id
-    for (var i = 0; i < this.tableSize; i++){
-      if (this.players[i] === null){
-      }
-      else if (this.players[i].uuid === userId){
-        if (this.players[i].folded === true){
-          this.foldedPlayers -= 1;
-        }
-        this.players[i] = null;
-        this.lastRemovedPlayer = i;
-      }
-    }
-
-    if (this.playerCount === this.tableSize){
-      this.update_next_empty_seat();
-    }
-    this.playerCount -= 1;
-
-    // going any further causes an infinite loop I think
-    if (this.playerCount === 0){
-      this.hand_done();
-      return;
-    }
-
-    var gameStillActive = this.game_still_active();
-    if (!gameStillActive){
-      this.hand_done();
-      return;
-    }
-
-    else if(this.lastRemovedPlayer === this.actor){
-      this.next_actor();
-    }
-  }
-
-  /**
    * remove_player
    * input:
    *    player
@@ -220,6 +171,10 @@ class Game{
     this.players[playerIndex] = null;
     this.lastRemovedPlayer = playerIndex;
     this.playerCount -= 1;
+    this.playerUserMapping.remove_player(player);
+    if (this.gameController !== null){
+      this.gameController.remove_player(this.lastRemovedPlayer)
+    }
   }
 
   /**
@@ -227,11 +182,19 @@ class Game{
    * input:
    *    user - 
    * Marks a player as disconnected (they now auto-fold / check)
+   *
+   * Special cases:
+   * 1) Hand is done/ inactive
+   *    We can remove the player immediately
    */
   disconnect_user(user){
     var actor = this.playerUserMapping.get_player(user);
     this.lastDisconnectedPlayer = this.playerUserMapping.get_index(actor);
     actor.disconnected = true;
+
+    if (this.handDone === true){
+      this.remove_player(actor);
+    }
   }
 
   /**
@@ -279,7 +242,9 @@ class Game{
    *
    *    We return here, because we do not want the next actor to calculate their valid moves.
    *
-   * 4) Inform the actor of their valid moves (how much they can raise, etc.)
+   * 4) If none of the edge cases happen, we have found a player who should get ready to act
+   *    We calculate their valid moves
+   * Inform the actor of their valid moves (how much they can raise, etc.)
    */
   next_actor(){
     // 1)
@@ -296,6 +261,7 @@ class Game{
     if (this.actor === this.lastRaiser){
       console.log("Round ending here");
       this.next_round();
+      return;
     }
 
     // 3)
@@ -390,24 +356,19 @@ class Game{
   hand_done(){
     console.log("HAND IS DONE");
     this.handDone = true;
-    debugger;
-
-    if (this.gameController !== null){
-      this.gameController.hand_done();
-    }
     for (const actor of this.players){
       if (actor !== null){
         actor.disable_moves();
         if (actor.disconnected === true){
-          this.remove_player(player);
+          this.remove_player(actor);
         }
-        /*
-        if (actor.stack == 0){
-          var user = this.playerUserMapping.get_user(actor)
-          this.gameController.kick_user(user)
+        else if (actor.stack == 0){
+          this.remove_player(actor);
         }
-        */
       }
+    }
+    if (this.gameController !== null){
+      this.gameController.hand_done();
     }
   }
 

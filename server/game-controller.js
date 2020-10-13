@@ -80,24 +80,11 @@ class GameController{
   }
 
   /**
-   * remove_user
-   * input:
-   *  user - The user which we are removing from this room
-   *
-   * Takes the user out of the game as well as performs any necessary clean up. If the 
-   * user was set to act, we must update the new actor
+   * remove_player
+   * Notifies the room that a player has been removed
    */
-  remove_user(user){
-    console.log("I SHOULD NOT BE CALLED");
-    this.gameObject.remove_user(user);
-    var playerIndex = this.gameObject.lastRemovedPlayer;
+  remove_player(playerIndex){
     this.io.to(this.socketName).emit("remove_user",playerIndex);
-    this.unbind_user_callbacks(user.socket);
-    this.userSocketBindings.delete(user.socket.id);
-    user.socket.leave(this.socketName);
-
-    this.update_actor();
-    this.update_active_player();
   }
 
   /**
@@ -106,17 +93,21 @@ class GameController{
    *    user
    * Make the user check/fold until the hand ends, at which point they get removed
    * 1)
-   *    If the user is set to act, we need to take control
+   *    If the game is not done, we might have disconnected the active user
    *    This can be handled by just telling us to update the current actor. It's cheeky, but
    *    it will work
    */
   disconnect_user(user){
     this.gameObject.disconnect_user(user);
     var playerIndex = this.gameObject.lastDisconnectedPlayer;
-    //this.io.to(this.socketName).emit("disconnect_user", playerIndex);
+    this.unbind_user_callbacks(user.socket);
+    this.userSocketBindings.delete(user.socket.id);
+    user.socket.leave(this.socketName);
 
     // 1)
-    this.update_actor();
+    if (this.gameObject.handDone === false){
+      this.update_actor();
+    }
   }
 
   /**
@@ -286,22 +277,48 @@ class GameController{
    * Tell them all of their valid moves
    *
    * Weird cases:
-   * 1) The actor is a disconnected user
+   * 1) We are in a case where we are updating a null actor (why does this happen?)
+   * Test case 1:
+   * 3 users in game
+   * First user raises, then leaves (2 players left)
+   * The user who is not acting leaves (1 player left in the game, the actor)
+   * The actor folds
+   *
+   * It seems that there are two players who leave the game, in specific seats:
+   * 1 is ending the action (the hand will end if this user folds)
+   * 1 is the last raiser (the action will end on them, and the hand will end on them unless
+   * somebody else raises)
+   *
+   * The hand ends, the users are removed, but the next actor has been updated to the last raiser
+   * (this is correct)
+   * However, the game ends here because the last raiser is now the current actor (again, this is
+   * correct)
+   * The game has ended, and the players get removed (expected behaviour)
+   * We make a call to update the next actor as part of our game flow
+   * We are looking at a null actor because the last raiser ended the action, and was removed
+   *
+   * Alternative:
+   * Check if the hand is done, instead of if user is null
+   * Checking for null user catches too many exceptions which might actually lead to a crash
+   *
+   * 2) The actor is a disconnected user
    *    Make them perform the default action for a disconnected user
    */
   update_actor(){
     var currActor = this.gameObject.current_actor();
 
     // 1)
+    if (currActor === null){
+      console.log("Tried to update a null actor, most likely somebody left the game");
+      return;
+    }
+
+    // 2)
     if (currActor.disconnected === true){
       this.disconnected_user_action();
       return;
     }
 
-    if (currActor === null){
-      console.log("Tried to update a null actor, most likely somebody left the game");
-      return;
-    }
     var validMoves = new playerActions.PlayerActions();
     validMoves.import_from_player(currActor);
     this.io.to(currActor.socketId).emit("valid_moves", validMoves);

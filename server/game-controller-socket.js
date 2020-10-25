@@ -22,12 +22,6 @@ module.exports = function(gameController, socket){
     return (gameController.gameObject.current_actor().socketId === socket.id);
   }
 
-  function update_gamestate(){
-    gameController.update_actor();
-    gameController.update_cards();
-    gameController.update_active_player();
-  }
-
   /**
    * handle_call
    * Very specific steps to be taken here
@@ -57,7 +51,7 @@ module.exports = function(gameController, socket){
       // 3)
       var betAmount = recentActor.lastBetSize;
       gameController.update_bet(betAmount, recentActorIndex);
-      update_gamestate();
+      gameController.update_gamestate();
     }
     else{
       console.log("A user is trying to act out of order");
@@ -80,7 +74,10 @@ module.exports = function(gameController, socket){
 
       var betAmount = recentActor.lastBetSize;
       gameController.update_bet(betAmount, recentActorIndex);
-      update_gamestate();
+      gameController.update_gamestate();
+    }
+    else{
+      console.log("A user is trying to act out of order");
     }
   }
 
@@ -99,7 +96,7 @@ module.exports = function(gameController, socket){
 
       var betAmount = recentActor.lastBetSize;
       gameController.update_bet(betAmount, recentActorIndex);
-      update_gamestate();
+      gameController.update_gamestate();
     }
     else{
       console.log("A user is trying to act out of order");
@@ -120,7 +117,10 @@ module.exports = function(gameController, socket){
       }
 
       gameController.update_fold(recentActorIndex);
-      update_gamestate();
+      gameController.update_gamestate();
+    }
+    else{
+      console.log("A user is trying to act out of order");
     }
   }
 
@@ -150,15 +150,5 @@ module.exports = function(gameController, socket){
     handle_print_board: handle_print_board,
     handle_reset_gamestate: handle_reset_gamestate,
   };
-  /*
-  return{
-    handle_call,
-    handle_raise,
-    handle_all_in,
-    handle_fold,
-    handle_start_game,
-    handle_print_board,
-  };
-  */
   return userCallbacks;
 }

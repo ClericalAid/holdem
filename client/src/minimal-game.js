@@ -246,6 +246,10 @@ class MinimalGame{
    * Mark a player as folded
    */
   fold(playerIndex){
+    if (this.players[playerIndex] === null){
+      console.log("A null player folded (most likely disconnected");
+      return;
+    }
     this.players[playerIndex].folded = true;
   }
 
@@ -270,6 +274,21 @@ class MinimalGame{
    */
   all_in(playerIndex){
     this.players[playerIndex].isAllIn = true;
+  }
+  
+  /**
+   * reveal_hands
+   * input:
+   *    playerCards - The players' cards at showdown
+   * Reveals the players' hands (no mucking I guess?)
+   */
+  update_players_hands(playerCards){
+    for (var i = 0; i < playerCards.length; i++){
+      var currHand = playerCards[i];
+      if (currHand !== null){
+        this.players[i].hand = currHand;
+      }
+    }
   }
 }
 

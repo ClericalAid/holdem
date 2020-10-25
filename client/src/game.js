@@ -17,6 +17,9 @@ const emptySeat = require('./assets/blank-player.png');
 
 const cardPictures = new Map(); // Maybe this should be moved into game object
 
+// consts
+const BLANK_CARD = "BLANK"; // A symbol for a blank card
+
 /**
  * Game React.Component
  * Renders the game screen/ table where the players play. This class also deals with the
@@ -117,7 +120,6 @@ export default class Game extends React.Component {
      * Which player is currently acting
      */
     this.props.socket.on("active_player", (activePlayerIndex) => {
-      console.log("received active player index", activePlayerIndex);
       this.gameObject.set_active_player(activePlayerIndex);
       this.setState((state, props) => {
         return ({
@@ -160,8 +162,6 @@ export default class Game extends React.Component {
       var allPlayerStacks = packet[0];
       var potRemainder = parseInt(packet[1]);
       this.gameObject.update_player_stacks(allPlayerStacks, potRemainder);
-      console.log("updating player chips");
-      console.log(this.gameObject);
       this.setState((state, props) => {
         return({
           players: this.gameObject.players,
@@ -186,6 +186,18 @@ export default class Game extends React.Component {
       });
     });
 
+    /**
+     * showdown_reveal
+     * show 2 to win baby
+     */
+    this.props.socket.on("showdown_reveal", (playerCards) => {
+      this.gameObject.update_players_hands(playerCards);
+      this.setState((state, props) => {
+        return({
+          players: this.gameObject.players,
+        });
+      });
+    });
 
     /**
      * update_bet
@@ -230,7 +242,6 @@ export default class Game extends React.Component {
      * The user has lost the game (their stack is at 0)
      */
     this.props.socket.on("user_lost", () => {
-      console.log("lost game, return to room select?");
       this.setState((state, props) => {
         return({
           playerLost: true,
@@ -485,15 +496,19 @@ export default class Game extends React.Component {
  * Renders players
  */
 function Player(props){
-  var card1 = cardPictures.get("BLANK");
-  var card2 = cardPictures.get("BLANK");
-  if (props.hand.length > 0 && props.hero === true){
+  if (props.hand.length > 0){
     var playerCard1 = props.hand[0];
     var playerCard2 = props.hand[1];
-    var cardString1 = "" + playerCard1.rank + playerCard1.suit;
-    var cardString2 = "" + playerCard2.rank + playerCard2.suit;
-    card1 = cardPictures.get(cardString1);
-    card2 = cardPictures.get(cardString2);
+    if (playerCard1 !== BLANK_CARD && playerCard2 !== BLANK_CARD){
+      var cardString1 = "" + playerCard1.rank + playerCard1.suit;
+      var cardString2 = "" + playerCard2.rank + playerCard2.suit;
+    }
+    else{
+      var cardString1 = BLANK_CARD;
+      var cardString2 = BLANK_CARD;
+    }
+    var card1 = cardPictures.get(cardString1);
+    var card2 = cardPictures.get(cardString2);
   }
 
   var borderClass = "player-border";

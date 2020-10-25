@@ -84,9 +84,6 @@ class Game{
     this.players.fill(null);
     this.playerCount = 0;
     this.nextEmptySeat = 0;
-    this.lastAddedPlayer = 0;
-    this.lastRemovedPlayer = 0;
-    this.lastDisconnectedPlayer = 0;
     this.playerRanking = [];
     this.handDone = true;
 
@@ -115,8 +112,18 @@ class Game{
     this.sidePotParticipants = [];
 
     // External Communication
+    // I need to remove the gameController from the game object. It almost feels like an anti-
+    // pattern. It seems nice for the game object to notify the game controller, almost like
+    // an interrupt. However, the game object almost always executes first, meaning the order
+    // in which we give the user information can get mixed up, causing huge issues further
+    // down the line
     this.gameController = null;
     this.playerUserMapping = new playerUserBinding.PlayerUserBinding()
+    this.lastAddedPlayer = 0;
+    this.lastRemovedPlayer = 0;
+    this.lastDisconnectedPlayer = 0;
+    this.removedPlayers = [];
+    this.zeroChipPlayers = [];
   }
 
 /**
@@ -172,9 +179,23 @@ class Game{
     this.lastRemovedPlayer = playerIndex;
     this.playerCount -= 1;
     this.playerUserMapping.remove_player(player);
-    if (this.gameController !== null){
-      this.gameController.remove_player(this.lastRemovedPlayer)
-    }
+    this.removedPlayers.push(playerIndex);
+  }
+
+  /**
+   * kick_player
+   * input:
+   *    player
+   * Do we treat players with 0 chips differently from those that are disconnected? 0 chips is
+   * different, because players with 0 chips still need to manage their sockets to effectively
+   * remove themselves from the room
+   */
+  kick_player(player){
+    var playerIndex = this.playerUserMapping.get_index(player)
+    this.players[playerIndex] = null;
+    this.playerCount -= 1;
+    this.playerUserMapping.remove_player(player);
+    this.zeroChipPlayers.push(playerIndex);
   }
 
   /**
@@ -188,6 +209,10 @@ class Game{
    *    We can remove the player immediately
    */
   disconnect_user(user){
+    if (this.playerUserMapping.has_user(user) === false){
+      console.log("disconnecting a non-existant user (probably had 0 chips)");
+      return;
+    }
     var actor = this.playerUserMapping.get_player(user);
     this.lastDisconnectedPlayer = this.playerUserMapping.get_index(actor);
     actor.disconnected = true;
@@ -259,7 +284,6 @@ class Game{
 
     // 2)
     if (this.actor === this.lastRaiser){
-      console.log("Round ending here");
       this.next_round();
       return;
     }
@@ -276,7 +300,6 @@ class Game{
      * programming logic to maintain the pot
      */
     else if (this.foldedPlayers === this.playerCount - 1){
-      console.log("Game should end here");
       this.next_round();
       return;
     }
@@ -332,6 +355,10 @@ class Game{
     this.playerRanking = [];
     this.handDone = false;
 
+    // External variables
+    this.removedPlayers = [];
+    //this.zeroChipPlayers = [];
+
     this.dealer = this.next_player(this.dealer);
     this.post_blinds();
     await this.deal_cards();
@@ -341,21 +368,16 @@ class Game{
    * hand_done
    * Marks the hand as being played out. It is important to disable all the players here, because
    * it is possible for them to send commands to the game object and ruin the game state.
-   *
-   * TODO:
-   * Handle cases where a player now has 0 chips
-   * Ideally they'd be removed:
-   *  Give the 'player' object a direct reference to the user which it is representing. Then,
-   *  the game object can call the game-controller's remove_user function.
-   *
-   * If a player has 0 chips, we:
-   *  Notify the game-controller, and have them deal with it?
-   *  - Remove user from game (make their seat null)
-   *  - Turn them into an observer (observers are handled by the game-controller)
    */
   hand_done(){
-    console.log("HAND IS DONE");
     this.handDone = true;
+  }
+
+  /**
+   * remove_marked_players
+   * Remove players if they have 0 chips, or have disconnected
+   */
+  remove_marked_players(){
     for (const actor of this.players){
       if (actor !== null){
         actor.disable_moves();
@@ -366,9 +388,6 @@ class Game{
           this.remove_player(actor);
         }
       }
-    }
-    if (this.gameController !== null){
-      this.gameController.hand_done();
     }
   }
 
@@ -578,7 +597,6 @@ class Game{
     }
     // 4)
     else if (this.sharedCards.length === this.RIVER){
-      console.log("IT'S SHOWDOWN BABY!");
       this.showdown();
     }
 

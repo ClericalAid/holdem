@@ -56,6 +56,14 @@ class PlayerUserBinding{
   }
 
   /**
+   * has_user
+   */
+  has_user(user){
+    var socketId = user.socket.id;
+    return this.userMap.has(socketId);
+  }
+
+  /**
    * remove_user
    * Removes user from the user map, and its corresponding player from the other map
    */

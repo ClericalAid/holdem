@@ -73,8 +73,6 @@ class GameController{
     var newPlayer = minGameObject.players[newPlayerIndex];
     user.socket.to(this.socketName).emit("new_user", [newPlayer, newPlayerIndex]);
     if (this.gameObject.playerCount == this.GAME_IS_PLAYABLE && this.automaticMode){
-      console.log("starting game");
-      console.log(this.automaticMode);
       this.start_game();
     }
   }
@@ -115,29 +113,16 @@ class GameController{
    * Make the disconnected user act
    */
   disconnected_user_action(){
-    console.log("A disconnected user is acting");
+    var recentActorIndex = this.gameObject.actor;
     if (this.gameObject.current_actor().canFold){
       this.gameObject.fold();
+      this.update_fold(recentActorIndex);
     }
     else{
       this.gameObject.call();
     }
 
-    this.update_actor();
-    this.update_cards();
-    this.update_active_player();
-  }
-
-  /**
-   * kick_user
-   * input:
-   *    user - The user which is getting removed
-   * Removes the user, against their will (they reached 0 chips or something like that) give them a
-   * message indicating that they lost
-   */
-  kick_user(user){
-    this.io.to(user.socket.id).emit("user_lost", null);
-    this.remove_user(user)
+    this.update_gamestate();
   }
 
   /**
@@ -178,17 +163,21 @@ class GameController{
    *  The add_user function checks if the game just became playable. Otherwise, a new player
    *  interrupts the currently running game.
    *
-   * TODO:
-   *  Fix the interaction between this function and the add_user function. Depends on the game
-   *  mode I want to try and introduce
+   * 2 important updates to give the players if the hand is done:
+   * 1) Distribution of the pot/ winnings
+   * 2) Remove users who left the game
    */
-  hand_done = () => {
+  hand_done(){
     this.update_cards();
     this.disable_all_players();
     this.update_win_chips();
+    this.update_reveal_all_cards();
+    //this.update_remove_players(this.gameObject.removedPlayers);
+    this.gameObject.remove_marked_players()
+
     this.gameIsRunning = false;
     if (this.gameObject.playerCount >= this.GAME_IS_PLAYABLE){
-      setTimeout(this.start_game, 2000);
+      setTimeout(this.start_game, 3000);
     }
   }
 
@@ -196,15 +185,19 @@ class GameController{
    * start_game
    * Begins the game and informs the user of the new board state of said fresh game
    *
+   * Remove all disconnected players/ players at 0 chips, and then start the game. This way, they
+   * are allowed to see their results for 3 seconds before being removed.
+   *
    * If the game is not playable, do not begin
    * If the game is already running, do not try to run it again
    */
   start_game = async () => {
+    this.update_remove_players(this.gameObject.removedPlayers);
     if (this.gameObject.playerCount < this.GAME_IS_PLAYABLE){
       return;
     }
     if (this.gameIsRunning){
-      console.log("Game already running!");
+      console.log("Start_game called when game is already running!");
       return;
     }
     this.gameIsRunning = true;
@@ -381,24 +374,28 @@ class GameController{
   update_fold(playerIndex){
     this.io.to(this.socketName).emit("fold", playerIndex);
   }
-  /**
-   * update_player_chips
-   * Brute force update all of the players' chips
-   * This function should be made into a "win chips" function I think
-   * TODO: Is this function necessary? Probably remove it
-   */
-  update_player_chips(){
-    var allPlayers = this.gameObject.players;
-    var allStacks = new Array(allPlayers.length);
-    allStacks.fill(null);
-    for (var i = 0; i < allPlayers.length; i++){
-      if (allPlayers[i] !== null){
-        allStacks[i] = allPlayers[i].stack;
-      }
-    }
 
-    var packet = [allStacks, this.gameObject.potRemainder]
-    this.io.to(this.socketName).emit("update_player_chips", packet);
+  /**
+   * update_gamestate
+   * In order to ensure that the user's game state does not deviate from ours, it is important
+   * to keep a consistent update order which does not break the game.
+   *
+   * The order proposed should work:
+   * 1) User bets (this is handled before this function gets called)
+   * 2) Updating cards (did the flop, turn, or river just drop?)
+   * 3) The pot is won (distribute the pot amongst the players)
+   * 4) Users are removed from the game (remove said users
+   *
+   * Operations 3 and 4 are only performed if the hand is done
+   */
+  update_gamestate(){
+    this.update_actor();
+    this.update_cards();
+    this.update_active_player();
+
+    if (this.gameObject.handDone === true){
+      this.hand_done();
+    }
   }
 
   /**
@@ -427,6 +424,32 @@ class GameController{
     }
   }
 
+  /**
+   * update_remove_players
+   */
+  update_remove_players(playerIndices){
+    for (const playerIndex of playerIndices){
+      this.remove_player(playerIndex);
+    }
+  }
+
+  /**
+   * update_reveal_all_cards
+   * Get all active players' cards into an array, and reveal them at showdown
+   */
+  update_reveal_all_cards(){
+    var playerCards = new Array(this.gameObject.tableSize);
+    for (var i = 0; i < this.gameObject.tableSize; i++){
+      var actor = this.gameObject.players[i];
+      if (actor !== null){
+        playerCards[i] = actor.hand;
+      }
+      else{
+        playerCards[i] = null;
+      }
+    }
+    this.io.to(this.socketName).emit("showdown_reveal", playerCards);
+  }
   /**
    * DATA PREPARATION METHODS
    * They make sure we only send sensitive information to the right people
